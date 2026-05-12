@@ -1,0 +1,196 @@
+---
+// VoiceResult — renders the score + highlighted draft + flags panel.
+// Client script populates the slots after a successful /api/check.
+---
+<section class="result" hidden>
+  <header class="result__head">
+    <div class="score">
+      <span class="score__num" data-field="score">—</span>
+      <span class="score__label">Voice-fit score</span>
+    </div>
+    <p class="score__reason" data-field="score_reason"></p>
+    <div class="result__actions">
+      <button class="btn btn--ghost btn--small" data-copy="rewrite">
+        Copy rewritten draft
+      </button>
+      <button class="btn btn--ghost btn--small" data-copy="flags">
+        Copy flags as comment
+      </button>
+    </div>
+  </header>
+
+  <div class="result__body">
+    <article class="draft-pane">
+      <h3 class="block__h">Your draft</h3>
+      <p class="draft" data-field="highlightedDraft"></p>
+      <p class="empty-state" data-field="flagsEmptyDraft" hidden>
+        Nothing flagged — this draft reads on-brand.
+      </p>
+    </article>
+    <article class="flags-pane">
+      <h3 class="block__h">Flags</h3>
+      <ul class="flags" data-field="flags"></ul>
+      <p class="empty-state" data-field="flagsEmpty" hidden>
+        Zero flags. Ship it.
+      </p>
+    </article>
+  </div>
+
+  <article class="rewrite">
+    <h3 class="block__h">Rewritten on-brand</h3>
+    <p data-field="rewritten_draft"></p>
+  </article>
+</section>
+
+<style>
+  .result {
+    background: var(--surface-0);
+    border: 1px solid var(--surface-200);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    margin-top: 1.5rem;
+    box-shadow: var(--shadow-card);
+  }
+  @media (max-width: 600px) { .result { padding: 1.5rem; } }
+
+  .result__head {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "score actions"
+      "reason reason";
+    gap: 0.5rem 1.5rem;
+    align-items: center;
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--surface-200);
+  }
+  .score {
+    grid-area: score;
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+  }
+  .score__num {
+    font-family: var(--font-display);
+    font-size: var(--text-5xl);
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+    color: var(--accent-500);
+  }
+  /* High score uses default surface-900 (calm); low score uses terracotta
+     (the system's one loud accent). Keeps the visual palette within the
+     locked Ember (G) token set — no hardcoded green. */
+  .score[data-band="high"] .score__num { color: var(--surface-900); }
+  .score[data-band="low"] .score__num { color: var(--accent-500); }
+  .score__label {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--surface-500);
+  }
+  .score__reason {
+    grid-area: reason;
+    color: var(--surface-700);
+    font-size: var(--text-sm);
+    max-width: 60ch;
+  }
+  .result__actions {
+    grid-area: actions;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-self: end;
+  }
+
+  .result__body {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 1.5rem;
+  }
+  @media (max-width: 760px) {
+    .result__body { grid-template-columns: 1fr; }
+  }
+
+  .block__h {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    margin-bottom: 0.75rem;
+  }
+
+  .draft {
+    background: var(--surface-50);
+    border: 1px solid var(--surface-200);
+    border-radius: var(--radius);
+    padding: 1rem 1.15rem;
+    line-height: var(--leading-relaxed);
+    color: var(--surface-900);
+    white-space: pre-wrap;
+  }
+  .draft :global(mark) {
+    background: oklch(from var(--accent-100) l c h / 0.85);
+    color: var(--accent-800);
+    border-bottom: 1.5px solid var(--accent-500);
+    padding: 0.05em 0.18em;
+    border-radius: 2px;
+    font-weight: var(--font-weight-semibold);
+    text-decoration: none;
+  }
+
+  .flags { list-style: none; padding: 0; margin: 0; }
+  .flags li {
+    background: var(--surface-50);
+    border: 1px solid var(--surface-200);
+    border-left: 3px solid var(--accent-500);
+    border-radius: var(--radius);
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.6rem;
+  }
+  .flag__phrase {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--accent-800);
+    margin-bottom: 0.3rem;
+  }
+  .flag__rule {
+    font-size: var(--text-sm);
+    color: var(--surface-700);
+    font-style: italic;
+    margin-bottom: 0.3rem;
+  }
+  .flag__rule::before, .flag__rule::after { content: "\""; }
+  .flag__rewrite {
+    font-size: var(--text-sm);
+    color: var(--surface-900);
+  }
+  .flag__rewrite-label {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    color: var(--surface-500);
+    letter-spacing: 0.05em;
+    margin-right: 0.4rem;
+  }
+
+  .rewrite {
+    margin-top: 1.75rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--surface-200);
+  }
+  .rewrite p {
+    background: oklch(from var(--amber-300) l c h / 0.18);
+    border-radius: var(--radius);
+    padding: 1rem 1.15rem;
+    line-height: var(--leading-relaxed);
+    color: var(--surface-900);
+    white-space: pre-wrap;
+  }
+
+  .empty-state {
+    font-style: italic;
+    color: var(--surface-500);
+    font-size: var(--text-sm);
+  }
+</style>

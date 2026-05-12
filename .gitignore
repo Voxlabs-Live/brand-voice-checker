@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.astro/
+.vercel/
+.env
+.env.local
+.DS_Store
+*.log
+
+# Local-only Han documentation — never tracked, never pushed
+FORHAN.md
+
+# Local IDE/preview launch config
+.claude/
+
+# Eval suite output
+out/

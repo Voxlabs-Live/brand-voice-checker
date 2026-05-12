@@ -1,0 +1,24 @@
+{
+  "name": "brand-voice-checker",
+  "version": "0.1.0",
+  "description": "Paste a brand voice doc and a draft, get flagged phrases with cited rules + a rewritten version. Part of the Agency Vibe-Coding Kit.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.2",
+    "@astrojs/vercel": "^8.0.0",
+    "@upstash/redis": "^1.34.0",
+    "astro": "^5.0.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0"
+  }
+}

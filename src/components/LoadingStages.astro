@@ -1,0 +1,50 @@
+---
+// 3-stage loading indicator. The component renders all three stages; the
+// page's client-side script toggles `data-stage="reading|extracting|done"` on
+// the wrapper to advance.
+interface Props {
+  stages?: [string, string, string];
+}
+const stages = Astro.props.stages ?? ["Reading", "Extracting", "Done"];
+---
+<div class="loading" data-stage="reading" hidden>
+  {stages.map((label, i) => (
+    <span class="loading__step" data-step={i}>
+      <span class="loading__dot"></span>
+      <span class="loading__label">{label}</span>
+    </span>
+  ))}
+</div>
+
+<style>
+  .loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--surface-500);
+    padding: 0.65rem 1rem;
+    background: var(--surface-100);
+    border-radius: var(--radius);
+    border: 1px solid var(--surface-200);
+  }
+  .loading__step { display: inline-flex; align-items: center; gap: 0.45rem; }
+  .loading__dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--surface-300);
+    transition: background var(--duration-base) var(--ease-smooth);
+  }
+  .loading[data-stage="reading"] .loading__step[data-step="0"] .loading__dot,
+  .loading[data-stage="extracting"] .loading__step[data-step="0"] .loading__dot,
+  .loading[data-stage="extracting"] .loading__step[data-step="1"] .loading__dot,
+  .loading[data-stage="done"] .loading__dot {
+    background: var(--accent-500);
+  }
+  .loading[data-stage="reading"] .loading__step[data-step="0"] .loading__label,
+  .loading[data-stage="extracting"] .loading__step[data-step="1"] .loading__label,
+  .loading[data-stage="done"] .loading__step[data-step="2"] .loading__label {
+    color: var(--surface-900);
+    font-weight: var(--font-weight-semibold);
+  }
+</style>

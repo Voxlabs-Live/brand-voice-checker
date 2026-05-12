@@ -1,0 +1,65 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  /** Display name of the tool (e.g. "Brief Translator"). */
+  toolName: string;
+  /** HTML <title> override; falls back to "Agency Vibe Kit · {toolName}". */
+  title?: string;
+  /** <meta description>. */
+  description: string;
+  /** URL of the buyer-facing repo, used by the footer "Fork the repo" link. */
+  repoUrl?: string;
+}
+
+const { toolName, description } = Astro.props;
+const title = Astro.props.title ?? `Agency Vibe Kit · ${toolName}`;
+const repoUrl = Astro.props.repoUrl ?? "https://github.com/Voxlabs-Live";
+const year = new Date().getFullYear();
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+
+    <!-- Active design system (Ember G): Playfair Display (display + italic
+         emphasis) + Source Sans 3 (body) + JetBrains Mono (technical labels,
+         kickers, status). Swap to B (Confident Technical) requires
+         re-copying tokens.css and updating this link tag. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500;1,700&family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="tool-header">
+        <span class="tool-header__crumb">
+          /agency_vibe_kit
+          <span class="tool-header__crumb-accent">&rsaquo; {toolName.toLowerCase().replace(/\s+/g, "_")}</span>
+        </span>
+        <span class="tool-header__status">demo · live</span>
+      </header>
+
+      <slot />
+
+      <footer class="tool-footer">
+        <span>&copy; {year} VoxLabs · Agency Vibe Kit</span>
+        <span>
+          <a href={repoUrl}>Fork the repo &rarr;</a>
+        </span>
+      </footer>
+    </div>
+  </body>
+</html>

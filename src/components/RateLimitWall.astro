@@ -1,0 +1,70 @@
+---
+// Over-limit fork-CTA card. The page's client-side script reveals this
+// when an /api response returns { error: "rate_limit_exceeded" }.
+interface Props {
+  /** GitHub repo URL — used to construct the Vercel one-click deploy link. */
+  repoUrl: string;
+  /** Loom URL once recorded; defaults to a placeholder. */
+  loomUrl?: string;
+}
+const { repoUrl } = Astro.props;
+const loomUrl = Astro.props.loomUrl ?? "#loom-coming-soon";
+const deployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(repoUrl)}&env=ANTHROPIC_API_KEY&envDescription=Get+your+Anthropic+API+key+from+console.anthropic.com&envLink=https%3A%2F%2Fconsole.anthropic.com%2Fsettings%2Fkeys`;
+---
+<aside class="wall" hidden>
+  <p class="kicker">Demo limit reached</p>
+  <h2 class="wall__head">You&rsquo;ve used your <em>5 free demo runs</em>.</h2>
+  <p class="wall__lede">
+    The full version is yours when you fork the repo. Three-minute deploy, your
+    own Anthropic key, no limits. The repo includes the prompt, the UI, and the
+    deploy guide.
+  </p>
+  <div class="wall__actions">
+    <a class="btn btn--primary" href={deployUrl}>Deploy to Vercel &rarr;</a>
+    <a class="btn btn--ghost" href={loomUrl}>Watch the deploy Loom</a>
+  </div>
+  <p class="wall__footnote">
+    Expected cost on your own key: ~$5&ndash;15/mo for normal agency use
+    (Claude Sonnet 4.6 via Anthropic API). No subscription. You pay only for
+    what you run.
+  </p>
+</aside>
+
+<style>
+  .wall {
+    background: var(--surface-0);
+    border: 1px solid var(--surface-200);
+    border-left: 3px solid var(--accent-500);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    box-shadow: var(--shadow-card);
+    margin-top: 1.5rem;
+  }
+  .wall__head {
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    line-height: var(--leading-tight);
+    margin: 0.5rem 0 1rem;
+  }
+  .wall__head em { color: var(--accent-500); font-style: italic; }
+  .wall__lede {
+    color: var(--surface-700);
+    margin-bottom: 1.5rem;
+    max-width: 56ch;
+  }
+  .wall__actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+  }
+  .wall__footnote {
+    font-size: var(--text-sm);
+    color: var(--surface-500);
+    max-width: 56ch;
+  }
+  @media (max-width: 600px) {
+    .wall { padding: 1.5rem; }
+    .wall__head { font-size: var(--text-2xl); }
+  }
+</style>

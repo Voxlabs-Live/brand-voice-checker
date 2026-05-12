@@ -1,0 +1,283 @@
+---
+import ToolLayout from "../layouts/ToolLayout.astro";
+import LoadingStages from "../components/LoadingStages.astro";
+import RateLimitWall from "../components/RateLimitWall.astro";
+import VoiceResult from "../components/VoiceResult.astro";
+import { VOICE_SAMPLES } from "../fixtures/studio-north";
+
+const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
+---
+<ToolLayout
+  toolName="Brand Voice Checker"
+  description="Paste a brand voice doc and a draft. Get flagged phrases with the cited rule, a voice-fit score, and an on-brand rewrite. Part of the Agency Vibe-Coding Kit."
+  repoUrl={REPO_URL}
+>
+  <h1 class="tool-title">
+    Catch off-brand copy before it goes to the <em>client</em>.
+  </h1>
+  <p class="tool-lede">
+    Paste the brand voice doc, paste the draft. Every flag comes with the
+    exact rule it violates, quoted from the doc — so you know the tool actually
+    read it.
+  </p>
+
+  <section class="card">
+    <div class="samples">
+      <span class="samples__label">Try a sample:</span>
+      {VOICE_SAMPLES.map((s) => (
+        <button class="btn btn--ghost btn--small" data-sample={s.id}>
+          {s.client}
+        </button>
+      ))}
+    </div>
+
+    <div class="two-col">
+      <div>
+        <label class="field-label" for="voiceDoc">
+          Brand voice doc
+          <span class="field-hint">
+            Don't have one? <a href="/brand-voice-template.md" download>Download a starter template</a>
+          </span>
+        </label>
+        <textarea
+          class="input"
+          id="voiceDoc"
+          name="voiceDoc"
+          placeholder="Paste the brand voice doc — tone words, banned words, punctuation rules, examples..."
+          rows="9"
+        ></textarea>
+      </div>
+      <div>
+        <label class="field-label" for="draft">
+          Draft to check
+          <span class="field-hint">Caption, email, post, anything client-facing</span>
+        </label>
+        <textarea
+          class="input"
+          id="draft"
+          name="draft"
+          placeholder="Paste the draft copy you want to check..."
+          rows="9"
+        ></textarea>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn--primary" id="submit">Check voice fit &rarr;</button>
+      <LoadingStages stages={["Reading", "Scoring", "Done"]} />
+      <span class="actions__hint" id="hint"></span>
+    </div>
+  </section>
+
+  <VoiceResult />
+  <RateLimitWall repoUrl={REPO_URL} />
+</ToolLayout>
+
+<style>
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+  @media (max-width: 760px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+  import { VOICE_SAMPLES } from "../fixtures/studio-north";
+  import type { VoiceResult } from "../lib/voice-types";
+  import type { ApiResponse } from "../lib/types";
+
+  const $ = (sel: string) => document.querySelector(sel) as HTMLElement | null;
+  const voiceDoc = $("#voiceDoc") as HTMLTextAreaElement;
+  const draft = $("#draft") as HTMLTextAreaElement;
+  const submit = $("#submit") as HTMLButtonElement;
+  const hint = $("#hint");
+  const loading = document.querySelector(".loading") as HTMLElement | null;
+  const result = document.querySelector(".result") as HTMLElement | null;
+  const wall = document.querySelector(".wall") as HTMLElement | null;
+
+  document.querySelectorAll<HTMLButtonElement>("[data-sample]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.sample;
+      const sample = VOICE_SAMPLES.find((s) => s.id === id);
+      if (sample) {
+        voiceDoc.value = sample.voiceDoc;
+        draft.value = sample.draft;
+      }
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const data = (window as any).__lastResult as VoiceResult | undefined;
+      if (!data) return;
+      const text =
+        btn.dataset.copy === "rewrite" ? data.rewritten_draft : formatFlags(data);
+      navigator.clipboard.writeText(text);
+      const orig = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(() => (btn.textContent = orig), 1400);
+    });
+  });
+
+  submit.addEventListener("click", async () => {
+    const v = voiceDoc.value.trim();
+    const d = draft.value.trim();
+    if (!v || !d) {
+      (v ? draft : voiceDoc).focus();
+      return;
+    }
+
+    submit.disabled = true;
+    if (hint) hint.textContent = "";
+    if (result) result.hidden = true;
+    if (wall) wall.hidden = true;
+    if (loading) {
+      loading.hidden = false;
+      loading.dataset.stage = "reading";
+    }
+    const t1 = window.setTimeout(() => {
+      if (loading) loading.dataset.stage = "extracting";
+    }, 800);
+
+    try {
+      const res = await fetch("/api/check", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ voiceDoc: v, draft: d }),
+      });
+      const payload = (await res.json()) as ApiResponse<VoiceResult>;
+      window.clearTimeout(t1);
+
+      if (!payload.ok) {
+        if (payload.error === "rate_limit_exceeded" && wall) {
+          wall.hidden = false;
+          wall.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else if (hint) {
+          hint.textContent = payload.message;
+        }
+        return;
+      }
+
+      if (loading) loading.dataset.stage = "done";
+      (window as any).__lastResult = payload.data;
+      render(payload.data, d);
+      if (hint && Number.isFinite(payload.remaining)) {
+        hint.textContent =
+          payload.remaining > 0
+            ? `${payload.remaining} demo run${payload.remaining === 1 ? "" : "s"} remaining`
+            : "Last demo run used — fork to keep going.";
+      }
+    } catch {
+      if (hint) hint.textContent = "Network error. Try again.";
+    } finally {
+      submit.disabled = false;
+      window.setTimeout(() => {
+        if (loading) loading.hidden = true;
+      }, 600);
+    }
+  });
+
+  function render(data: VoiceResult, originalDraft: string) {
+    if (!result) return;
+    result.hidden = false;
+
+    const scoreEl = result.querySelector(".score") as HTMLElement;
+    const scoreNum = result.querySelector('[data-field="score"]') as HTMLElement;
+    const reason = result.querySelector('[data-field="score_reason"]') as HTMLElement;
+    scoreNum.textContent = String(data.score);
+    scoreEl.dataset.band = data.score >= 75 ? "high" : "low";
+    reason.textContent = data.score_reason;
+
+    const draftEl = result.querySelector('[data-field="highlightedDraft"]') as HTMLElement;
+    draftEl.innerHTML = highlight(originalDraft, data.flags.map((f) => f.phrase));
+
+    const flagsList = result.querySelector('[data-field="flags"]') as HTMLElement;
+    const flagsEmpty = result.querySelector('[data-field="flagsEmpty"]') as HTMLElement;
+    flagsList.innerHTML = "";
+    if (data.flags.length === 0) {
+      flagsEmpty.hidden = false;
+    } else {
+      flagsEmpty.hidden = true;
+      data.flags.forEach((f) => {
+        const li = document.createElement("li");
+        const phrase = document.createElement("p");
+        phrase.className = "flag__phrase";
+        phrase.textContent = f.phrase;
+        const rule = document.createElement("p");
+        rule.className = "flag__rule";
+        rule.textContent = f.rule_cited;
+        const rewrite = document.createElement("p");
+        rewrite.className = "flag__rewrite";
+        const label = document.createElement("span");
+        label.className = "flag__rewrite-label";
+        label.textContent = "Try:";
+        rewrite.appendChild(label);
+        rewrite.appendChild(document.createTextNode(f.suggested_rewrite));
+        li.appendChild(phrase);
+        li.appendChild(rule);
+        li.appendChild(rewrite);
+        flagsList.appendChild(li);
+      });
+    }
+
+    const rewritten = result.querySelector('[data-field="rewritten_draft"]') as HTMLElement;
+    rewritten.textContent = data.rewritten_draft;
+
+    result.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function highlight(text: string, phrases: string[]): string {
+    if (phrases.length === 0) return escapeHtml(text);
+    // Sort longest-first so a longer phrase doesn't get fragmented by a
+    // shorter one that's its substring.
+    const sorted = [...new Set(phrases)].sort((a, b) => b.length - a.length);
+    let out = "";
+    let cursor = 0;
+    while (cursor < text.length) {
+      let bestIdx = -1;
+      let bestPhrase = "";
+      for (const p of sorted) {
+        if (!p) continue;
+        const idx = text.indexOf(p, cursor);
+        if (idx !== -1 && (bestIdx === -1 || idx < bestIdx)) {
+          bestIdx = idx;
+          bestPhrase = p;
+        }
+      }
+      if (bestIdx === -1) {
+        out += escapeHtml(text.slice(cursor));
+        break;
+      }
+      out += escapeHtml(text.slice(cursor, bestIdx));
+      out += `<mark>${escapeHtml(bestPhrase)}</mark>`;
+      cursor = bestIdx + bestPhrase.length;
+    }
+    return out;
+  }
+
+  function escapeHtml(s: string): string {
+    return s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function formatFlags(d: VoiceResult): string {
+    if (d.flags.length === 0) {
+      return `Voice-fit score: ${d.score}/100 — ${d.score_reason}\nNo flags.`;
+    }
+    return [
+      `Voice-fit score: ${d.score}/100 — ${d.score_reason}`,
+      "",
+      ...d.flags.map(
+        (f, i) =>
+          `${i + 1}. "${f.phrase}" — violates: ${f.rule_cited}\n   Try: ${f.suggested_rewrite}`
+      ),
+    ].join("\n");
+  }
+</script>
