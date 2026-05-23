@@ -18,12 +18,12 @@ Part of the [Agency Vibe-Coding Kit](https://voxlabs.live) — a $7 starter pack
 
 You don't need a terminal. You need a GitHub account, a Vercel account, and an Anthropic API key.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FVoxlabs-Live%2Fbrand-voice-checker&env=ANTHROPIC_API_KEY&envDescription=Get%20your%20Anthropic%20API%20key%20from%20console.anthropic.com&envLink=https%3A%2F%2Fconsole.anthropic.com%2Fsettings%2Fkeys)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FVoxlabs-Live%2Fbrand-voice-checker&env=ANTHROPIC_API_KEY&envDescription=Get%20your%20Anthropic%20API%20key%20from%20platform.claude.com&envLink=https%3A%2F%2Fplatform.claude.com)
 
 1. Click **Deploy with Vercel**.
 2. Sign in to GitHub. Vercel will fork this repo into your GitHub account.
 3. Sign up for Vercel free tier (~3 min, no credit card needed).
-4. Paste your **Anthropic API key** when prompted. Get one at [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys).
+4. Paste your **Anthropic API key** when prompted. Get one at [platform.claude.com](https://platform.claude.com) — sign up, click "Get API Key" on the dashboard, copy the key somewhere safe (you only see it once).
 5. Click **Deploy**. Wait ~90 seconds. You get your own URL.
 
 That's it. The tool is yours — no limits, you pay only what you use on Anthropic.

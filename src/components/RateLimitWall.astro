@@ -9,7 +9,7 @@ interface Props {
 }
 const { repoUrl } = Astro.props;
 const loomUrl = Astro.props.loomUrl ?? "#loom-coming-soon";
-const deployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(repoUrl)}&env=ANTHROPIC_API_KEY&envDescription=Get+your+Anthropic+API+key+from+console.anthropic.com&envLink=https%3A%2F%2Fconsole.anthropic.com%2Fsettings%2Fkeys`;
+const deployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(repoUrl)}&env=ANTHROPIC_API_KEY&envDescription=Get+your+Anthropic+API+key+from+platform.claude.com&envLink=https%3A%2F%2Fplatform.claude.com`;
 ---
 <aside class="wall" hidden>
   <p class="kicker">Demo limit reached</p>

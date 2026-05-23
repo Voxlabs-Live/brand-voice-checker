@@ -167,6 +167,12 @@ code, .mono {
   gap: 0.5rem 1.5rem;
 }
 
+.tool-footer__links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+}
+
 /* ── Reusable surface card ────────────────────────────── */
 .card {
   background: var(--surface-0);

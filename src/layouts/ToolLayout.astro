@@ -15,6 +15,7 @@ interface Props {
 const { toolName, description } = Astro.props;
 const title = Astro.props.title ?? `Agency Vibe Kit · ${toolName}`;
 const repoUrl = Astro.props.repoUrl ?? "https://github.com/Voxlabs-Live";
+const deployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(repoUrl)}&env=ANTHROPIC_API_KEY&envDescription=Get+your+Anthropic+API+key+from+platform.claude.com&envLink=https%3A%2F%2Fplatform.claude.com`;
 const year = new Date().getFullYear();
 ---
 <!doctype html>
@@ -56,7 +57,8 @@ const year = new Date().getFullYear();
 
       <footer class="tool-footer">
         <span>&copy; {year} VoxLabs · Agency Vibe Kit</span>
-        <span>
+        <span class="tool-footer__links">
+          <a href={deployUrl}>Deploy to Vercel &rarr;</a>
           <a href={repoUrl}>Fork the repo &rarr;</a>
         </span>
       </footer>
