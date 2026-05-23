@@ -44,23 +44,85 @@ A 10-minute screen recording covers the whole flow. [Watch it here](#loom-coming
 
 ## Customize the tool
 
-Two suggested customizations:
+This repo is yours to modify. You don't have to write code — **Claude** rewrites the files for you, you paste the result back into GitHub in your browser. No terminal, no command line.
 
-### Tune what gets flagged
+### One-time setup (≈3 minutes)
 
-Open `src/prompts/system.ts`. The system prompt defines what gets flagged and how the score is computed. Loosen or tighten the strictness, add your own scoring bands, change the cited-rule format.
+1. **Download the Claude desktop app.** Go to [claude.ai/download](https://claude.ai/download). Click the download button for your operating system. On **Mac**, open the downloaded file and drag the Claude icon into your Applications folder. On **Windows**, run the installer. Sign in with your Claude account.
 
-### Add per-client voice presets
+That's it. Claude desktop is the same chat you already know from [claude.ai](https://claude.ai) — just running as an app on your computer. (If you'd rather not install anything, [claude.ai](https://claude.ai) in your browser works exactly the same way for the steps below.)
 
-The fixtures in `src/fixtures/studio-north.ts` are demo content. Replace them with your real client voice docs to skip the paste step.
+### How customizing works
 
-### Upgrade to polished UI
+Three browser tabs and one app, working together:
 
-The kit's **Bump #1 — Claude Design Polish Guide** ($17) walks you through styling this repo with [Claude Design](https://claude.com/design). *(Available after kit purchase.)*
+1. **GitHub** in your browser — where your tool's code lives.
+2. **Claude desktop app** — does the rewriting.
+3. **Vercel** in your browser — auto-redeploys your live tool when you commit a change.
+
+The flow for any change is the same six steps:
+
+1. **In GitHub**, click the file you want to change (paths are in the prompts below).
+2. Click the **"Copy raw file"** icon at the top right of the file view — it copies the whole file to your clipboard.
+3. **In Claude desktop**, start a new chat. Paste the file contents. Below it, paste the prompt from this README. Hit return.
+4. Claude rewrites the file and shows you the result. Copy Claude's output.
+5. **Back in GitHub**, click the **pencil icon** at the top right of the file view (the tooltip says "Edit this file"). Select everything (`Cmd+A` on Mac, `Ctrl+A` on Windows), delete it, paste your new version.
+6. Scroll to the bottom of the page. Write a one-line summary of what changed (e.g. "Loosen strictness on contraction rule"). Click the green **"Commit changes"** button.
+
+Vercel sees the commit and auto-redeploys your live URL in about 90 seconds. Refresh your tool to see the change.
+
+### Three starting points
+
+#### 1. Loosen or tighten what gets flagged
+
+The current tool flags off-brand phrases and computes a score against the brand voice doc you paste in. Want to loosen the strictness? Tighten it? Add your own scoring bands? Change how rules are cited?
+
+**File to copy from GitHub:** `src/prompts/system.ts`
+
+> **Prompt to paste below the file contents:**
+> ```
+> The file above is the Brand Voice Checker's system prompt. I want to
+> loosen the strictness so that contractions ("you're", "we'll") never get
+> flagged, even if the brand voice doc says to avoid them. Keep all other
+> rules and scoring as-is.
+>
+> Rewrite the file with this change. Return the full updated file so I can
+> paste it back into GitHub.
+> ```
+
+Adapt the prompt — describe the rules you want to relax, tighten, or change in your own words.
+
+#### 2. Replace demo clients with your own
+
+The tool ships with three sample clients (Aurelia Lashes, Mantra Yoga, Dr. Eckhardt Clinic) so you can try the checker without setting anything up. Replace them with your real clients so the tool starts pre-loaded for each — one click, no paste step.
+
+**File to copy from GitHub:** `src/fixtures/studio-north.ts`
+
+> **Prompt:**
+> ```
+> The file above contains three demo client voice docs. Replace them with
+> these three of mine instead:
+>
+> Client 1: [paste your client's name, brand voice description, and a
+> short do/don't list here]
+>
+> Client 2: [same]
+>
+> Client 3: [same]
+>
+> Keep the file structure identical so the tool still works. Return the
+> full updated file so I can paste it back into GitHub.
+> ```
+
+#### 3. Make it look like agency work, not a starter kit
+
+For a full re-skin: the **Claude Design Brand Pass Guide** ($17) walks you through restyling this exact repo using [Claude Design](https://claude.com/design) — the guide ships handoff bundles for the entire UI. *(Available after kit purchase.)*
 
 ---
 
-## Local dev
+## Local dev (for developers only)
+
+> **Skip this section if you used the Deploy with Vercel button above.** This is for developers who want to clone the repo and run a dev server locally. If you don't know what `npm` is, you don't need this — the Customize section above is the path you want.
 
 ```sh
 git clone https://github.com/Voxlabs-Live/brand-voice-checker
@@ -90,8 +152,8 @@ Then open `http://localhost:4321`.
 |---|---|
 | Brief Translator | [Voxlabs-Live/brief-translator](https://github.com/Voxlabs-Live/brief-translator) |
 | **Brand Voice Checker** | this repo |
-| Weekly Hook Sheet Generator | coming next |
-| Shot List Generator | coming next |
+| Weekly Hook Sheet Generator | [Voxlabs-Live/hook-sheet](https://github.com/Voxlabs-Live/hook-sheet) |
+| Shot List Generator | [Voxlabs-Live/shot-list](https://github.com/Voxlabs-Live/shot-list) |
 
 ---
 
