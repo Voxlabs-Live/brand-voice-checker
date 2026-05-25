@@ -22,14 +22,16 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   </p>
 
   <section class="card">
-    <div class="samples">
-      <span class="samples__label">Try a sample:</span>
-      {VOICE_SAMPLES.map((s) => (
-        <button class="btn btn--ghost btn--small" data-sample={s.id}>
-          {s.client}
-        </button>
-      ))}
-    </div>
+    {VOICE_SAMPLES.length > 0 && (
+      <div class="samples">
+        <span class="samples__label">Try a sample:</span>
+        {VOICE_SAMPLES.map((s) => (
+          <button class="btn btn--ghost btn--small" data-sample={s.id}>
+            {s.client}
+          </button>
+        ))}
+      </div>
+    )}
 
     <div class="two-col">
       <div>
