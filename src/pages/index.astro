@@ -391,6 +391,15 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   let currentDoc: VoiceDoc = emptyVoiceDoc();
   /** Snapshot used to detect unsaved changes when "Done editing" or "Cancel" is clicked. */
   let editingBaselineId = "";
+  /**
+   * If the textarea currently holds a sample draft, this is the id of the sample
+   * (voice doc id) it came from. Null when the textarea is empty or contains
+   * user-typed content. Read by syncDraftToActiveDoc() to keep sample drafts in
+   * lockstep with their parent sample when the user switches via the dropdown —
+   * without ever clobbering a user-typed draft. Declared early to dodge the
+   * temporal dead zone, since setMode runs during bootstrap.
+   */
+  let draftSampleId: string | null = null;
 
   const $ = (sel: string) => document.querySelector(sel) as HTMLElement | null;
   const draftInput = $("#draft") as HTMLTextAreaElement;
@@ -484,6 +493,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     stageVoiceDoc.dataset.active = next === "editing" ? "true" : "false";
     refreshStageStatus();
     refreshDraftTarget();
+    syncDraftToActiveDoc(); // must run before submit + hint refresh see textarea state
     updateSubmitEnabled();
     refreshSampleDraftHint();
     if (next === "summary") renderSummary();
@@ -519,6 +529,9 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     submitBtn.disabled = !enabled;
   }
   draftInput.addEventListener("input", () => {
+    // Any keystroke = the user has taken ownership. Stop auto-syncing the
+    // textarea when the active voice doc changes from here on.
+    draftSampleId = null;
     updateSubmitEnabled();
     refreshSampleDraftHint();
   });
@@ -534,10 +547,29 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     const draftEmpty = draftInput.value.trim().length === 0;
     sampleDraftHint.hidden = !(sampleDraft && draftEmpty && mode === "summary");
   }
+  /**
+   * Keep a sample-loaded draft in sync with the active voice doc.
+   * - Draft is user-typed (draftSampleId === null) → do nothing. Always.
+   * - Draft already matches the active doc → do nothing.
+   * - Active doc is a different sample → swap draft to its matching caption.
+   * - Active doc is a user-created client doc → clear the orphaned sample draft.
+   */
+  function syncDraftToActiveDoc(): void {
+    if (!draftSampleId || draftSampleId === currentDoc.id) return;
+    const sampleDraft = currentSampleDraft();
+    if (sampleDraft) {
+      draftInput.value = sampleDraft;
+      draftSampleId = currentDoc.id;
+    } else {
+      draftInput.value = "";
+      draftSampleId = null;
+    }
+  }
   loadSampleDraftBtn.addEventListener("click", () => {
     const sampleDraft = currentSampleDraft();
     if (!sampleDraft) return;
     draftInput.value = sampleDraft;
+    draftSampleId = currentDoc.id;
     updateSubmitEnabled();
     refreshSampleDraftHint();
     draftInput.focus();
@@ -562,6 +594,8 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
           currentDoc = saved;
           form.setDoc(saved);
           draftInput.value = s.draft;
+          // Tag the textarea so subsequent dropdown switches keep it in sync.
+          draftSampleId = saved.id;
           populatePickerSelect();
           populateSummarySwitcher();
           pickerSelect.value = saved.id;
