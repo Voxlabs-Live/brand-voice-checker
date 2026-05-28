@@ -111,6 +111,11 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
         placeholder="Paste the draft copy you want to check — caption, email, post, anything client-facing..."
         rows="6"
       ></textarea>
+      <p class="draft__sample-hint" data-sample-hint hidden>
+        <button type="button" class="draft__sample-hint-btn" data-load-sample-draft>
+          Try the matching sample draft &rarr;
+        </button>
+      </p>
       <div class="actions">
         <button class="btn btn--primary" id="submit">Check voice fit &rarr;</button>
         <LoadingStages stages={["Reading", "Scoring", "Done"]} />
@@ -322,6 +327,31 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     padding: 2.5rem 1.5rem;
   }
 
+  /* "Try the matching sample draft" — surfaces in the Draft card when a
+   * sample voice doc is active and the textarea is empty. Only path to the
+   * matching off-brand caption now that the dropdown switcher exists; the
+   * empty-state CTA still auto-fills on first click. */
+  .draft__sample-hint {
+    margin: 0.5rem 0 0;
+    font-size: var(--text-sm);
+    color: var(--surface-500);
+  }
+  .draft__sample-hint-btn {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    color: var(--surface-700);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: var(--surface-300);
+  }
+  .draft__sample-hint-btn:hover {
+    color: var(--surface-900);
+    text-decoration-color: currentColor;
+  }
+
   /* Visually hide a label but keep it for screen readers. */
   .visually-hidden {
     position: absolute;
@@ -366,6 +396,8 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   const draftInput = $("#draft") as HTMLTextAreaElement;
   const submitBtn = $("#submit") as HTMLButtonElement;
   const hint = $("#hint");
+  const sampleDraftHint = $('[data-sample-hint]') as HTMLElement;
+  const loadSampleDraftBtn = $('[data-load-sample-draft]') as HTMLButtonElement;
   const loading = document.querySelector(".loading") as HTMLElement | null;
   const resultPanel = document.querySelector(".result") as HTMLElement | null;
   const resultStage = document.querySelector('[data-stage="result"]') as HTMLElement | null;
@@ -453,6 +485,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     refreshStageStatus();
     refreshDraftTarget();
     updateSubmitEnabled();
+    refreshSampleDraftHint();
     if (next === "summary") renderSummary();
   }
 
@@ -485,7 +518,30 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     const enabled = !!docOk && draftOk && mode !== "editing";
     submitBtn.disabled = !enabled;
   }
-  draftInput.addEventListener("input", updateSubmitEnabled);
+  draftInput.addEventListener("input", () => {
+    updateSubmitEnabled();
+    refreshSampleDraftHint();
+  });
+
+  /** Return the matching sample for the currently active doc, if it's a sample. */
+  function currentSampleDraft(): string | undefined {
+    if (!currentDoc.id?.startsWith(SAMPLE_ID_PREFIX)) return undefined;
+    const match = VOICE_SAMPLES.find((s) => s.voiceDoc.id === currentDoc.id);
+    return match?.draft;
+  }
+  function refreshSampleDraftHint(): void {
+    const sampleDraft = currentSampleDraft();
+    const draftEmpty = draftInput.value.trim().length === 0;
+    sampleDraftHint.hidden = !(sampleDraft && draftEmpty && mode === "summary");
+  }
+  loadSampleDraftBtn.addEventListener("click", () => {
+    const sampleDraft = currentSampleDraft();
+    if (!sampleDraft) return;
+    draftInput.value = sampleDraft;
+    updateSubmitEnabled();
+    refreshSampleDraftHint();
+    draftInput.focus();
+  });
 
   // ─── Sample buttons (empty state + editing mode) ────────────────────
   function populateAllSamplesRows(): void {
