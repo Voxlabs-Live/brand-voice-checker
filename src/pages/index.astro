@@ -1156,11 +1156,15 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       if (loading) loading.dataset.stage = "done";
       (window as any).__lastResult = payload.data;
       render(payload.data, draft);
-      if (hint && Number.isFinite(payload.remaining)) {
+      // remaining === -1 is the unlimited sentinel from the API (DEMO_MODE
+       // is off — buyer's fork or local dev). Suppress the hint entirely.
+      if (hint && Number.isFinite(payload.remaining) && payload.remaining >= 0) {
         hint.textContent =
           payload.remaining > 0
             ? `${payload.remaining} demo run${payload.remaining === 1 ? "" : "s"} remaining`
             : "Last demo run used — fork to keep going.";
+      } else if (hint) {
+        hint.textContent = "";
       }
     } catch {
       if (hint) hint.textContent = "Network error. Try again.";
