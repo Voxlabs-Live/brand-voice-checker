@@ -187,12 +187,26 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     if (!result) return;
     result.hidden = false;
 
-    const scoreEl = result.querySelector(".score") as HTMLElement;
-    const scoreNum = result.querySelector('[data-field="score"]') as HTMLElement;
+    const bandEl = result.querySelector(".band") as HTMLElement;
+    const bandLabel = result.querySelector('[data-field="band_label"]') as HTMLElement;
+    const compositeEl = result.querySelector('[data-field="composite_score"]') as HTMLElement;
+    const confidenceEl = result.querySelector('[data-field="confidence_badge"]') as HTMLElement;
     const reason = result.querySelector('[data-field="score_reason"]') as HTMLElement;
-    scoreNum.textContent = String(data.score);
-    scoreEl.dataset.band = data.score >= 75 ? "high" : "low";
+
+    bandEl.dataset.band = data.band;
+    bandLabel.textContent = data.band_label;
+    compositeEl.textContent = String(data.composite_score);
+    if (data.confidence === "high") {
+      confidenceEl.hidden = true;
+    } else {
+      confidenceEl.hidden = false;
+      confidenceEl.dataset.confidence = data.confidence;
+      confidenceEl.textContent =
+        data.confidence === "medium" ? "Medium confidence" : "Low confidence";
+    }
     reason.textContent = data.score_reason;
+
+    renderSubScores(data);
 
     const draftEl = result.querySelector('[data-field="highlightedDraft"]') as HTMLElement;
     draftEl.innerHTML = highlight(originalDraft, data.flags.map((f) => f.phrase));
@@ -230,6 +244,29 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     rewritten.textContent = data.rewritten_draft;
 
     result.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function renderSubScores(data: VoiceResult) {
+    if (!result) return;
+    const keys = ["vocabulary", "punctuation", "tone", "cadence"] as const;
+    for (const key of keys) {
+      const el = result.querySelector(`.subscore[data-key="${key}"]`) as HTMLElement | null;
+      if (!el) continue;
+      const value = data.sub_scores[key];
+      const valueEl = el.querySelector(".subscore__value") as HTMLElement;
+      const fillEl = el.querySelector(".subscore__fill") as HTMLElement;
+      valueEl.textContent = String(value);
+      fillEl.style.width = `${Math.max(0, Math.min(100, value))}%`;
+      el.dataset.band = subBandFor(value);
+    }
+  }
+
+  function subBandFor(score: number): string {
+    if (score >= 90) return "on-brand";
+    if (score >= 75) return "mostly-on-brand";
+    if (score >= 55) return "drifting";
+    if (score >= 35) return "off-brand";
+    return "rewrite-needed";
   }
 
   function highlight(text: string, phrases: string[]): string {
@@ -270,11 +307,15 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   }
 
   function formatFlags(d: VoiceResult): string {
+    const header = `${d.band_label} — ${d.composite_score}/100 (${d.confidence} confidence)`;
+    const sub = `Sub-scores: vocabulary ${d.sub_scores.vocabulary} · punctuation ${d.sub_scores.punctuation} · tone ${d.sub_scores.tone} · cadence ${d.sub_scores.cadence}`;
     if (d.flags.length === 0) {
-      return `Voice-fit score: ${d.score}/100 — ${d.score_reason}\nNo flags.`;
+      return `${header}\n${sub}\n${d.score_reason}\nNo flags.`;
     }
     return [
-      `Voice-fit score: ${d.score}/100 — ${d.score_reason}`,
+      header,
+      sub,
+      d.score_reason,
       "",
       ...d.flags.map(
         (f, i) =>
