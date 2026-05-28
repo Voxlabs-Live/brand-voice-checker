@@ -1,0 +1,99 @@
+---
+// UploadDoc — drag-and-drop file upload that imports an existing voice doc.
+// On success, dispatches a CustomEvent "doc-imported" with the ImportResult
+// payload; index.astro listens, populates the form, and renders the critique
+// panel.
+---
+<details class="upload" data-upload>
+  <summary class="upload__summary">
+    Import an existing voice doc (PDF · DOCX · MD · TXT) →
+  </summary>
+  <div class="upload__body">
+    <div class="upload__drop" data-upload-drop>
+      <input
+        type="file"
+        class="upload__input"
+        data-upload-input
+        accept=".pdf,.docx,.md,.markdown,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/markdown,text/plain"
+        aria-label="Choose a voice doc to import"
+      />
+      <div class="upload__hint" data-upload-hint>
+        <strong>Drop your voice doc here</strong> or click to browse.<br>
+        Supports PDF, Word (.docx), Markdown, plain text. ≤5MB.
+      </div>
+    </div>
+    <p class="upload__status" data-upload-status></p>
+  </div>
+</details>
+
+<style>
+  .upload {
+    margin: 0.75rem 0 1rem;
+    border: 1px solid var(--surface-200);
+    border-radius: var(--radius);
+    background: var(--surface-50);
+  }
+  .upload__summary {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--surface-700);
+    list-style: none;
+  }
+  .upload__summary::-webkit-details-marker { display: none; }
+  .upload__summary:hover { color: var(--surface-900); }
+  .upload[open] .upload__summary {
+    border-bottom: 1px solid var(--surface-200);
+  }
+
+  .upload__body { padding: 1rem; }
+
+  .upload__drop {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.75rem 1rem;
+    background: var(--surface-0);
+    border: 2px dashed var(--surface-300);
+    border-radius: var(--radius);
+    text-align: center;
+    color: var(--surface-700);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .upload__drop:hover,
+  .upload__drop[data-drag="over"] {
+    border-color: var(--accent-400);
+    background: oklch(from var(--accent-50) l c h / 0.6);
+  }
+  .upload__drop[data-state="busy"] {
+    border-color: var(--amber-500);
+    background: oklch(from var(--amber-300) l c h / 0.15);
+    cursor: progress;
+  }
+
+  .upload__input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: inherit;
+  }
+
+  .upload__hint {
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+  }
+  .upload__hint strong { color: var(--surface-900); }
+
+  .upload__status {
+    margin: 0.5rem 0 0;
+    font-size: var(--text-sm);
+    min-height: 1.2rem;
+    color: var(--surface-700);
+  }
+  .upload__status[data-state="error"] { color: var(--accent-600); }
+  .upload__status[data-state="success"] { color: var(--surface-900); }
+</style>

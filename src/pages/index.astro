@@ -5,6 +5,8 @@ import RateLimitWall from "../components/RateLimitWall.astro";
 import VoiceResult from "../components/VoiceResult.astro";
 import VoiceDocForm from "../components/VoiceDocForm.astro";
 import VoiceDocPicker from "../components/VoiceDocPicker.astro";
+import UploadDoc from "../components/UploadDoc.astro";
+import DocCritiquePanel from "../components/DocCritiquePanel.astro";
 
 const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
 ---
@@ -29,6 +31,8 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       <summary class="samples-details__summary">Try with a built-in sample →</summary>
       <div class="samples" data-samples-row></div>
     </details>
+    <UploadDoc />
+    <DocCritiquePanel />
     <VoiceDocForm />
   </section>
 
@@ -101,6 +105,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   import { mountForm, type FormHandle } from "../lib/voice-doc-form";
   import type { VoiceResult } from "../lib/voice-types";
   import type { ApiResponse } from "../lib/types";
+  import type { ImportResult } from "./api/import-doc";
 
   const $ = (sel: string) => document.querySelector(sel) as HTMLElement | null;
   const draftInput = $("#draft") as HTMLTextAreaElement;
@@ -268,6 +273,227 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       strength.score >= 9 ? "strong" :
       strength.score >= 7 ? "solid" :
       strength.score >= 5 ? "workable" : "weak";
+  }
+
+  // ─── Upload + critique wiring ──────────────────────────────────────────
+  const uploadDetails = document.querySelector("[data-upload]") as HTMLDetailsElement | null;
+  const uploadDrop = document.querySelector("[data-upload-drop]") as HTMLElement | null;
+  const uploadInput = document.querySelector("[data-upload-input]") as HTMLInputElement | null;
+  const uploadStatus = document.querySelector("[data-upload-status]") as HTMLElement | null;
+  const critiquePanel = document.querySelector("[data-critique]") as HTMLElement | null;
+
+  if (uploadDrop && uploadInput) {
+    ["dragenter", "dragover"].forEach((evt) => {
+      uploadDrop.addEventListener(evt, (e) => {
+        e.preventDefault();
+        uploadDrop.dataset.drag = "over";
+      });
+    });
+    ["dragleave", "drop"].forEach((evt) => {
+      uploadDrop.addEventListener(evt, (e) => {
+        e.preventDefault();
+        delete uploadDrop.dataset.drag;
+      });
+    });
+    uploadDrop.addEventListener("drop", (e) => {
+      const dt = (e as DragEvent).dataTransfer;
+      const f = dt?.files?.[0];
+      if (f) void handleUpload(f);
+    });
+    uploadInput.addEventListener("change", () => {
+      const f = uploadInput.files?.[0];
+      if (f) void handleUpload(f);
+    });
+  }
+
+  async function handleUpload(file: File): Promise<void> {
+    if (!uploadDrop || !uploadStatus) return;
+    uploadDrop.dataset.state = "busy";
+    uploadStatus.dataset.state = "";
+    uploadStatus.textContent = `Reading ${file.name}…`;
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      uploadStatus.textContent = "Extracting structure and analyzing…";
+      const res = await fetch("/api/import-doc", { method: "POST", body });
+      const payload = (await res.json()) as ApiResponse<ImportResult>;
+      if (!payload.ok) {
+        uploadStatus.dataset.state = "error";
+        uploadStatus.textContent = payload.message;
+        delete uploadDrop.dataset.state;
+        return;
+      }
+      uploadStatus.dataset.state = "success";
+      uploadStatus.textContent = payload.data.cached
+        ? "Re-imported from cache (identical to a previous upload)."
+        : `Imported ${payload.data.filename}. Review the suggestions and click "Save changes" to keep this doc.`;
+      delete uploadDrop.dataset.state;
+      applyImport(payload.data);
+    } catch (err) {
+      uploadStatus.dataset.state = "error";
+      uploadStatus.textContent = "Upload failed. Try again.";
+      delete uploadDrop.dataset.state;
+    }
+  }
+
+  function applyImport(result: ImportResult): void {
+    // Populate the form with the imported doc.
+    currentDoc = result.doc;
+    form.setDoc(result.doc);
+    pickerSelect.value = ""; // not yet saved — user must click Save changes
+    updateStrength();
+    // Render the critique panel.
+    renderCritique(result);
+    setStatus(
+      `Imported "${result.doc.client_name}" from ${result.filename}. Review and save.`,
+      "saved"
+    );
+    // Collapse the upload area so the user can focus on review.
+    if (uploadDetails) uploadDetails.open = false;
+    if (critiquePanel) critiquePanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  const SECTION_LABELS: Record<number, string> = {
+    1: "§1 Tone words",
+    2: "§2 Banned words",
+    3: "§3 Cadence rules",
+    4: "§4 Voice-on examples",
+    5: "§5 Voice-off examples",
+    6: "§6 Punctuation",
+    7: "§7 CTA rules",
+    8: "§8 Terminology",
+    9: "§9 Exceptions",
+    10: "§10 Examples gallery",
+  };
+
+  function renderCritique(result: ImportResult): void {
+    if (!critiquePanel) return;
+    critiquePanel.hidden = false;
+    const scoreEl = critiquePanel.querySelector('[data-field="critique_score"]') as HTMLElement;
+    const summaryEl = critiquePanel.querySelector('[data-field="critique_summary"]') as HTMLElement;
+    scoreEl.textContent = String(result.strength.score);
+    summaryEl.textContent = result.strength.summary;
+    critiquePanel.dataset.band =
+      result.strength.score >= 9 ? "strong" :
+      result.strength.score >= 7 ? "solid" :
+      result.strength.score >= 5 ? "workable" : "weak";
+
+    // Per-section status list.
+    const sectionsList = critiquePanel.querySelector('[data-field="critique_sections"]') as HTMLElement;
+    sectionsList.innerHTML = "";
+    for (const s of result.strength.sections) {
+      const li = document.createElement("li");
+      const pill = document.createElement("span");
+      pill.className = "critique__pill";
+      pill.dataset.status = s.status;
+      pill.textContent = s.status;
+      const text = document.createElement("span");
+      text.textContent = `${SECTION_LABELS[s.section] ?? s.label} — ${s.reason}`;
+      li.appendChild(pill);
+      li.appendChild(text);
+      sectionsList.appendChild(li);
+    }
+
+    // Suggestions.
+    const sugList = critiquePanel.querySelector('[data-field="critique_suggestions"]') as HTMLElement;
+    const sugEmpty = critiquePanel.querySelector('[data-field="critique_no_suggestions"]') as HTMLElement;
+    sugList.innerHTML = "";
+    if (!result.suggestions || result.suggestions.length === 0) {
+      sugList.hidden = true;
+      sugEmpty.hidden = false;
+    } else {
+      sugList.hidden = false;
+      sugEmpty.hidden = true;
+      for (const sug of result.suggestions) {
+        const li = document.createElement("li");
+        const head = document.createElement("div");
+        head.className = "critique__suggestion-head";
+        const section = document.createElement("span");
+        section.className = "critique__suggestion-section";
+        section.textContent = SECTION_LABELS[sug.section] ?? sug.section_label;
+        head.appendChild(section);
+        if (Array.isArray(sug.example_items) && sug.example_items.length > 0) {
+          const apply = document.createElement("button");
+          apply.type = "button";
+          apply.className = "btn btn--ghost btn--small";
+          apply.textContent = "Apply →";
+          apply.addEventListener("click", () => {
+            applySuggestion(sug);
+            apply.textContent = "Applied";
+            apply.disabled = true;
+          });
+          head.appendChild(apply);
+        }
+        const text = document.createElement("p");
+        text.className = "critique__suggestion-text";
+        text.textContent = sug.suggestion;
+        li.appendChild(head);
+        li.appendChild(text);
+        if (Array.isArray(sug.example_items) && sug.example_items.length > 0) {
+          const exList = document.createElement("ul");
+          exList.className = "critique__suggestion-examples";
+          for (const item of sug.example_items) {
+            const exLi = document.createElement("li");
+            exLi.textContent = typeof item === "string" ? item : JSON.stringify(item);
+            exList.appendChild(exLi);
+          }
+          li.appendChild(exList);
+        }
+        sugList.appendChild(li);
+      }
+    }
+  }
+
+  function applySuggestion(sug: ImportResult["suggestions"][number]): void {
+    // Read current doc, append example items to the right section, write back.
+    const doc = form.readDoc();
+    const items = sug.example_items ?? [];
+    switch (sug.section) {
+      case 2:
+        for (const it of items) {
+          if (typeof it === "string") doc.banned_words.push({ word: it });
+          else if (typeof it === "object" && "word" in (it as any))
+            doc.banned_words.push(it as { word: string; reason?: string });
+        }
+        break;
+      case 3:
+        for (const it of items) {
+          if (typeof it === "string") doc.cadence_rules.push(it);
+        }
+        break;
+      case 4:
+        for (const it of items) {
+          if (typeof it === "string") doc.voice_on_examples.push(it);
+        }
+        break;
+      case 5:
+        for (const it of items) {
+          if (typeof it === "object" && "example" in (it as any)) {
+            doc.voice_off_examples.push(it as { example: string; why_wrong: string });
+          }
+        }
+        break;
+      case 8:
+        for (const it of items) {
+          if (typeof it === "object" && "use" in (it as any) && "not" in (it as any)) {
+            doc.required_terms.push(it as { use: string; not: string; note?: string });
+          }
+        }
+        break;
+      case 10:
+        for (const it of items) {
+          if (typeof it === "string") doc.examples_gallery.push(it);
+        }
+        break;
+    }
+    form.setDoc(doc);
+    currentDoc = doc;
+    updateStrength();
+  }
+
+  const closeBtn = document.querySelector("[data-critique-close]") as HTMLButtonElement | null;
+  if (closeBtn && critiquePanel) {
+    closeBtn.addEventListener("click", () => (critiquePanel.hidden = true));
   }
 
   // Submit — read structured doc + draft, POST to /api/check.

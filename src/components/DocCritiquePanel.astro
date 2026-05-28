@@ -1,0 +1,203 @@
+---
+// DocCritiquePanel — renders the import result. Strength score (left,
+// large), per-section status (middle), and LLM suggestions with "Apply"
+// buttons (right). All numeric / status data is deterministic; only the
+// suggestion text comes from the LLM.
+---
+<aside class="critique" data-critique hidden>
+  <header class="critique__head">
+    <div class="critique__score">
+      <span class="critique__num" data-field="critique_score">—</span>
+      <span class="critique__suffix">/10</span>
+      <span class="critique__label">doc strength</span>
+    </div>
+    <p class="critique__summary" data-field="critique_summary"></p>
+    <button type="button" class="btn btn--ghost btn--small critique__close" data-critique-close aria-label="Dismiss critique">×</button>
+  </header>
+
+  <div class="critique__body">
+    <section class="critique__sections">
+      <h4 class="critique__h">Section status</h4>
+      <ul class="critique__section-list" data-field="critique_sections"></ul>
+    </section>
+    <section class="critique__suggestions">
+      <h4 class="critique__h">Suggestions</h4>
+      <ul class="critique__suggestion-list" data-field="critique_suggestions"></ul>
+      <p class="critique__empty" data-field="critique_no_suggestions" hidden>
+        No suggestions — your doc is already in good shape.
+      </p>
+    </section>
+  </div>
+</aside>
+
+<style>
+  .critique {
+    margin: 0 0 1.25rem;
+    background: var(--surface-50);
+    border: 1px solid var(--surface-200);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem 1.5rem;
+  }
+  .critique[data-band="weak"] { border-left: 3px solid var(--accent-500); }
+  .critique[data-band="workable"] { border-left: 3px solid var(--amber-600); }
+  .critique[data-band="solid"] { border-left: 3px solid var(--surface-700); }
+  .critique[data-band="strong"] { border-left: 3px solid var(--surface-900); }
+
+  .critique__head {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--surface-200);
+  }
+  .critique__score {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+  .critique__num {
+    font-family: var(--font-display);
+    font-size: var(--text-4xl);
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+    color: var(--surface-900);
+  }
+  .critique[data-band="weak"] .critique__num { color: var(--accent-500); }
+  .critique[data-band="workable"] .critique__num { color: var(--amber-700); }
+  .critique__suffix {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--surface-500);
+  }
+  .critique__label {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--surface-600);
+    margin-left: 0.4rem;
+  }
+  .critique__summary {
+    margin: 0;
+    color: var(--surface-700);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+  }
+  .critique__close {
+    color: var(--surface-500);
+    width: 1.85rem;
+    height: 1.85rem;
+    padding: 0;
+    font-size: 1.2rem;
+  }
+  .critique__close:hover { color: var(--accent-500); }
+
+  .critique__body {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr;
+    gap: 1.5rem;
+  }
+  @media (max-width: 760px) {
+    .critique__body { grid-template-columns: 1fr; }
+  }
+
+  .critique__h {
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+    margin: 0 0 0.55rem;
+    color: var(--surface-900);
+  }
+
+  .critique__section-list,
+  .critique__suggestion-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .critique__section-list li {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.55rem;
+    align-items: start;
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+  }
+  .critique__pill {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    min-width: 4.3rem;
+    text-align: center;
+    color: var(--surface-700);
+    background: var(--surface-200);
+  }
+  .critique__pill[data-status="present"] {
+    background: oklch(from var(--surface-900) l c h / 0.12);
+    color: var(--surface-900);
+  }
+  .critique__pill[data-status="weak"] {
+    background: oklch(from var(--amber-400) l c h / 0.3);
+    color: var(--amber-700);
+  }
+  .critique__pill[data-status="missing"] {
+    background: oklch(from var(--accent-200) l c h / 0.55);
+    color: var(--accent-800);
+  }
+
+  .critique__suggestion-list li {
+    background: var(--surface-0);
+    border: 1px solid var(--surface-200);
+    border-radius: var(--radius);
+    padding: 0.65rem 0.85rem;
+  }
+  .critique__suggestion-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+  }
+  .critique__suggestion-section {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--surface-700);
+  }
+  .critique__suggestion-text {
+    font-size: var(--text-sm);
+    color: var(--surface-900);
+    margin: 0 0 0.4rem;
+    line-height: var(--leading-normal);
+  }
+  .critique__suggestion-examples {
+    margin: 0.3rem 0 0;
+    padding-left: 1rem;
+    color: var(--surface-700);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+  }
+  .critique__suggestion-examples li {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin-bottom: 0.2rem;
+    list-style: disc;
+  }
+
+  .critique__empty {
+    font-style: italic;
+    color: var(--surface-500);
+    font-size: var(--text-sm);
+  }
+</style>

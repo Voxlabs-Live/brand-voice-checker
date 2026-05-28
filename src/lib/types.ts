@@ -11,4 +11,9 @@ export type ApiErrorCode =
   | "invalid_input"
   | "anthropic_error"
   | "parse_error"
-  | "missing_api_key";
+  | "missing_api_key"
+  | "unsupported_type"
+  | "file_too_large"
+  | "empty_file"
+  | "no_extractable_text"
+  | "parse_failed";
