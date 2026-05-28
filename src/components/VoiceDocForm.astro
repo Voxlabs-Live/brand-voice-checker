@@ -209,76 +209,39 @@
     margin-top: 0.3rem;
   }
 
+  /* NOTE: .form-row / .form-list / .input--small / .row-remove styles live
+     in global.css because the rows are created dynamically by
+     voice-doc-form.ts. Scoped Astro styles wouldn't apply to JS-created DOM. */
+
   .voice-form__section {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.85rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--surface-150);
   }
-  .voice-form__section:last-child { margin-bottom: 0; }
+  .voice-form__section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
   .voice-form__h {
     font-family: var(--font-display);
-    font-size: var(--text-base);
+    font-size: var(--text-lg);
     font-weight: var(--font-weight-semibold);
-    margin: 0 0 0.3rem;
+    margin: 0 0 0.35rem;
     color: var(--surface-900);
   }
   .voice-form__hint {
     font-size: var(--text-sm);
     color: var(--surface-600);
-    margin: 0 0 0.65rem;
+    margin: 0 0 0.85rem;
     line-height: var(--leading-normal);
+    max-width: 62ch;
   }
 
-  .form-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    margin-bottom: 0.5rem;
+  /* Add-row button gets a little visual breathing room from the list. */
+  .voice-form__section > .btn--small {
+    margin-top: 0.5rem;
   }
-
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr auto;
-    gap: 0.4rem;
-    align-items: start;
-  }
-  .form-row--tone {
-    grid-template-columns: 1fr 1fr 1fr;
-  }
-  .form-row--stacked {
-    grid-template-columns: 1fr auto;
-  }
-  .form-row__main {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-  /* Banned words: 1fr 1fr auto. Required terms: 1fr 1fr 1fr auto. */
-  [data-list="required_terms"] .form-row { grid-template-columns: 1fr 1fr 1fr auto; }
-  /* Single-text rows */
-  [data-list="cadence_rules"] .form-row,
-  [data-list="voice_on_examples"] .form-row,
-  [data-list="examples_gallery"] .form-row,
-  [data-list="cta_preferred"] .form-row,
-  [data-list="cta_banned"] .form-row {
-    grid-template-columns: 1fr auto;
-  }
-
-  .input--small {
-    padding: 0.4rem 0.6rem;
-    font-size: var(--text-sm);
-  }
-  textarea.input--small {
-    resize: vertical;
-  }
-
-  .btn--icon {
-    width: 1.85rem;
-    height: 1.85rem;
-    padding: 0;
-    font-size: 1.1rem;
-    line-height: 1;
-    color: var(--surface-600);
-  }
-  .btn--icon:hover { color: var(--accent-500); }
 
   .form-grid {
     display: grid;

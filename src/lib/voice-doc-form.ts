@@ -95,6 +95,10 @@ export function mountForm(root: HTMLElement): FormHandle {
     renderRequiredTerms(root, doc.required_terms);
     renderExceptions(root, doc.exceptions ?? []);
     renderTextList(root, "examples_gallery", doc.examples_gallery);
+    // Programmatic value assignment doesn't fire input/change events, so we
+    // notify the listener explicitly. Otherwise the strength meter and any
+    // other dependents would stay stale until the user types into the form.
+    emitChange();
   }
 
   function readDoc(): VoiceDoc {
@@ -209,7 +213,7 @@ function addBannedWordRow(container: HTMLElement, word: string, reason: string):
   row.innerHTML = `
     <input class="input input--small" data-row-field="word" placeholder="banned word" value="${escapeAttr(word)}">
     <input class="input input--small" data-row-field="reason" placeholder="reason (optional)" value="${escapeAttr(reason)}">
-    <button type="button" class="btn btn--ghost btn--small btn--icon" data-remove-row aria-label="Remove">×</button>
+    ${trashButton("Remove banned word")}
   `;
   container.appendChild(row);
 }
@@ -241,12 +245,12 @@ function addTextListRow(container: HTMLElement, text: string, useTextarea: boole
   if (useTextarea) {
     row.innerHTML = `
       <textarea class="input input--small" data-row-field="text" rows="2" placeholder="example">${escapeHtml(text)}</textarea>
-      <button type="button" class="btn btn--ghost btn--small btn--icon" data-remove-row aria-label="Remove">×</button>
+      ${trashButton("Remove row")}
     `;
   } else {
     row.innerHTML = `
       <input class="input input--small" data-row-field="text" placeholder="rule or phrase" value="${escaped}">
-      <button type="button" class="btn btn--ghost btn--small btn--icon" data-remove-row aria-label="Remove">×</button>
+      ${trashButton("Remove row")}
     `;
   }
   container.appendChild(row);
@@ -286,10 +290,14 @@ function addVoiceOffRow(container: HTMLElement, example: string, why_wrong: stri
   row.innerHTML = `
     <div class="form-row__main">
       <textarea class="input input--small" data-row-field="example" rows="2" placeholder="off-brand example">${escapeHtml(example)}</textarea>
-      <input class="input input--small" data-row-field="why_wrong" placeholder="why it's wrong" value="${escapeAttr(why_wrong)}">
+      <input class="input input--small" data-row-field="why_wrong" placeholder="why it's wrong">
     </div>
-    <button type="button" class="btn btn--ghost btn--small btn--icon" data-remove-row aria-label="Remove">×</button>
+    ${trashButton("Remove example")}
   `;
+  // Setting the why_wrong value via property (not attribute) preserves spaces
+  // and special chars without HTML-escape ambiguity.
+  const whyInput = row.querySelector<HTMLInputElement>('[data-row-field="why_wrong"]');
+  if (whyInput) whyInput.value = why_wrong;
   container.appendChild(row);
 }
 
@@ -321,7 +329,7 @@ function addRequiredTermRow(container: HTMLElement, use: string, not: string, no
     <input class="input input--small" data-row-field="use" placeholder="use this" value="${escapeAttr(use)}">
     <input class="input input--small" data-row-field="not" placeholder="not this" value="${escapeAttr(not)}">
     <input class="input input--small" data-row-field="note" placeholder="context (optional)" value="${escapeAttr(note)}">
-    <button type="button" class="btn btn--ghost btn--small btn--icon" data-remove-row aria-label="Remove">×</button>
+    ${trashButton("Remove term swap")}
   `;
   container.appendChild(row);
 }
@@ -351,7 +359,7 @@ function addExceptionRow(container: HTMLElement, exception: string, when: string
   row.innerHTML = `
     <input class="input input--small" data-row-field="exception" placeholder="exception" value="${escapeAttr(exception)}">
     <input class="input input--small" data-row-field="when" placeholder="when does it apply" value="${escapeAttr(when)}">
-    <button type="button" class="btn btn--ghost btn--small btn--icon" data-remove-row aria-label="Remove">×</button>
+    ${trashButton("Remove exception")}
   `;
   container.appendChild(row);
 }
@@ -376,6 +384,20 @@ function addRow(root: HTMLElement, section: string): void {
       addTextListRow(container, "", isTextareaSection(section));
       break;
   }
+}
+
+function trashButton(ariaLabel: string): string {
+  // Inline SVG so we don't ship an icon font for one icon. Bin shape with
+  // handle, lid, and three vertical lines on the body.
+  return `
+    <button type="button" class="row-remove" data-remove-row aria-label="${escapeAttr(ariaLabel)}">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M2.5 4.25h11M6 4.25V2.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.75"/>
+        <path d="M4 4.25 4.7 12.9a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9L12 4.25"/>
+        <path d="M6.7 7v4M9.3 7v4"/>
+      </svg>
+    </button>
+  `;
 }
 
 function escapeAttr(s: string): string {

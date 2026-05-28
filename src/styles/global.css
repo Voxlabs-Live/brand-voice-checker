@@ -283,3 +283,166 @@ input.input:focus {
   font-size: var(--text-sm);
   color: var(--surface-500);
 }
+
+/* ─────────────────────────────────────────────────────────
+ * Repeating-row form patterns.
+ *
+ * Lives in global.css (not scoped to VoiceDocForm.astro) because the rows
+ * are created dynamically by voice-doc-form.ts. Astro's automatic style
+ * scoping only attaches its data attribute to elements present in the
+ * .astro markup at build time, so JS-created elements would otherwise miss
+ * the layout completely.
+ * ───────────────────────────────────────────────────────── */
+.form-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.6rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr auto;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.5rem 0.6rem 0.5rem 0.75rem;
+  background: var(--surface-0);
+  border: 1px solid var(--surface-200);
+  border-radius: var(--radius);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.form-row:hover {
+  border-color: var(--surface-300);
+}
+.form-row:focus-within {
+  border-color: var(--accent-400);
+  box-shadow: 0 0 0 3px oklch(from var(--accent-200) l c h / 0.4);
+}
+
+/* Tone words live as bare inline inputs without the card chrome. */
+.form-row--tone {
+  grid-template-columns: 1fr 1fr 1fr;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+.form-row--tone:hover,
+.form-row--tone:focus-within {
+  border: none;
+  box-shadow: none;
+}
+
+/* Stacked rows (voice-off examples): example textarea on top, why_wrong
+   input below, with the trash icon anchored to the top-right. */
+.form-row--stacked {
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  padding: 0.7rem 0.75rem 0.75rem;
+}
+.form-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* Per-section grid overrides — each repeating list has its own column layout
+   matched to the field shape. */
+[data-list="required_terms"] .form-row {
+  grid-template-columns: 1fr 1fr 1.2fr auto;
+}
+[data-list="cadence_rules"] .form-row,
+[data-list="voice_on_examples"] .form-row,
+[data-list="examples_gallery"] .form-row,
+[data-list="cta_preferred"] .form-row,
+[data-list="cta_banned"] .form-row {
+  grid-template-columns: 1fr auto;
+  align-items: start;
+}
+
+/* Inputs sit inside the row card. min-width: 0 is required so flex/grid
+   items can shrink narrower than their content-derived intrinsic width. */
+.form-row .input--small {
+  width: 100%;
+  min-width: 0;
+  background: var(--surface-0);
+  border: 1px solid var(--surface-150);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.6rem;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  color: var(--surface-900);
+  transition: border-color 0.12s, background 0.12s;
+}
+.form-row .input--small:hover {
+  border-color: var(--surface-300);
+}
+.form-row .input--small:focus {
+  background: var(--surface-0);
+  border-color: var(--accent-400);
+  outline: none;
+}
+.form-row textarea.input--small {
+  resize: vertical;
+  min-height: 2.4rem;
+  line-height: var(--leading-normal);
+}
+.form-row .input--small::placeholder {
+  color: var(--surface-500);
+  font-style: italic;
+}
+
+/* Trash button — muted by default, accent on row-hover. The icon is an
+   inline SVG so we don't ship an icon font. */
+.row-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.95rem;
+  height: 1.95rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--surface-500);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.12s, color 0.12s, background 0.12s, border-color 0.12s;
+  align-self: center;
+}
+.form-row--stacked .row-remove {
+  align-self: start;
+}
+.form-row:hover .row-remove,
+.form-row:focus-within .row-remove {
+  opacity: 1;
+}
+.row-remove:hover {
+  color: var(--accent-700);
+  background: oklch(from var(--accent-100) l c h / 0.6);
+  border-color: oklch(from var(--accent-300) l c h / 0.6);
+}
+.row-remove:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--accent-400);
+  outline-offset: 1px;
+}
+.row-remove svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  display: block;
+}
+
+/* Compact mobile layout: stack inputs vertically inside the row card so
+   nothing gets squeezed. The trash icon moves to top-right. */
+@media (max-width: 540px) {
+  .form-row,
+  [data-list="required_terms"] .form-row {
+    grid-template-columns: 1fr auto;
+    align-items: start;
+  }
+  .form-row .input--small + .input--small {
+    grid-column: 1;
+  }
+}
