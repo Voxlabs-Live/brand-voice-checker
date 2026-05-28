@@ -193,12 +193,23 @@ function mergeLlmExtraction(
 ): VoiceDoc {
   const out: VoiceDoc = { ...baseDoc };
 
-  if (llm.client_name && !out.client_name) {
-    out.client_name = llm.client_name;
-  } else if (!out.client_name) {
-    // Fall back to the filename (stripped of extension) so the saved doc has
-    // something to identify it.
-    out.client_name = filename.replace(/\.[^.]+$/, "");
+  if (!out.client_name) {
+    // Prefer the LLM-extracted client name (which usually comes from the doc's
+    // title or first heading) over the filename. Only fall back to the
+    // filename when no extracted name is available OR when the LLM-extracted
+    // name looks like a generic placeholder.
+    const filenameStem = filename.replace(/\.[^.]+$/, "");
+    const llmName = (llm.client_name ?? "").trim();
+    if (llmName && !isGenericName(llmName)) {
+      out.client_name = llmName;
+    } else if (!isGenericName(filenameStem)) {
+      out.client_name = filenameStem;
+    } else if (llmName) {
+      // Both look generic — at least the LLM tried to identify something.
+      out.client_name = llmName;
+    } else {
+      out.client_name = filenameStem;
+    }
   }
   if (llm.vertical && !out.vertical) out.vertical = llm.vertical;
 
@@ -250,6 +261,45 @@ function mergeLlmExtraction(
   }
 
   return out;
+}
+
+/**
+ * Heuristic for "looks like a filler / placeholder name, not a real client."
+ * Matches common defaults from export tools, system-generated names, and
+ * "voice doc"-style descriptors that aren't actually a brand name.
+ */
+function isGenericName(name: string): boolean {
+  const n = name.trim().toLowerCase();
+  if (!n) return true;
+  // Normalize separators so "my-voice-doc" and "my_voice_doc" both match.
+  const normalized = n.replace(/[-_\s]+/g, " ").trim();
+  const GENERIC_EXACT = new Set([
+    "document",
+    "untitled",
+    "untitled document",
+    "voice doc",
+    "voice document",
+    "brand voice",
+    "brand voice doc",
+    "brand voice document",
+    "brand voice guidelines",
+    "voice guidelines",
+    "voice and tone",
+    "tone of voice",
+    "client",
+    "draft",
+    "copy of",
+    "new document",
+    "test",
+    "sample",
+    "example",
+  ]);
+  if (GENERIC_EXACT.has(normalized)) return true;
+  // Patterns like "my voice doc", "our brand voice", "the voice guide"
+  if (/^(my|our|the)\s+(voice|brand|tone)/.test(normalized)) return true;
+  // Pure number/date filenames ("doc 2024-01-15", "file 1").
+  if (/^(doc|file|document|untitled)\s*[\d\-]+$/.test(normalized)) return true;
+  return false;
 }
 
 /**

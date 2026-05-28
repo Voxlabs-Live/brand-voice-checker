@@ -893,6 +893,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
 
     const sectionsList = critiquePanel.querySelector('[data-field="critique_sections"]') as HTMLElement;
     sectionsList.innerHTML = "";
+    const deterministicSet = new Set(result.deterministic_sections ?? []);
     for (const s of result.strength.sections) {
       const li = document.createElement("li");
       const pill = document.createElement("span");
@@ -900,7 +901,20 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       pill.dataset.status = s.status;
       pill.textContent = s.status;
       const text = document.createElement("span");
-      text.textContent = `${SECTION_LABELS[s.section] ?? s.label} — ${s.reason}`;
+      text.className = "critique__section-text";
+      const main = document.createElement("span");
+      main.textContent = `${SECTION_LABELS[s.section] ?? s.label} — ${s.reason}`;
+      text.appendChild(main);
+      // Only show an origin badge when something is present — "missing" sections
+      // came from neither source, so labeling them is noise.
+      if (s.status !== "missing") {
+        const origin = document.createElement("span");
+        origin.className = "critique__origin";
+        const fromDoc = deterministicSet.has(s.section);
+        origin.dataset.origin = fromDoc ? "extracted" : "filled";
+        origin.textContent = fromDoc ? "from your doc" : "we filled this in";
+        text.appendChild(origin);
+      }
       li.appendChild(pill);
       li.appendChild(text);
       sectionsList.appendChild(li);

@@ -167,7 +167,10 @@ function extractBannedWords(text: string): BannedWord[] {
   // Pattern 2: bullet line "- word — reason"  OR  "- "word" — reason"
   for (const line of extractBulletLines(text)) {
     const quoted = line.match(/^["']([^"']+)["']\s*(?:[—–-]\s*(.+))?$/);
-    const dashSplit = line.match(/^([A-Za-z][A-Za-z0-9 '\-]*?)\s*[—–-]\s*(.+)$/);
+    // ASCII hyphens require surrounding whitespace to separate word from reason;
+    // unspaced `-` is treated as a compound-word character (e.g. `game-changer`).
+    // Em/en dashes are unambiguous separators, so whitespace is optional.
+    const dashSplit = line.match(/^([A-Za-z][A-Za-z0-9 '\-]*?)(?:\s+-\s+|\s*[—–]\s*)(.+)$/);
     let word = "";
     let reason: string | undefined;
     if (quoted) {
@@ -214,6 +217,26 @@ function extractBulletLines(text: string): string[] {
       const content = m[1].trim();
       if (content) out.push(content);
     }
+  }
+  if (out.length > 0) return out;
+
+  // Fallback for .pdf / .docx where list markers were lost in extraction.
+  // Split the section on blank lines and treat each short, single-statement
+  // block as a bullet. Constraints kept tight so body prose doesn't match:
+  //   - need 3+ such blocks (a single short block is just a paragraph)
+  //   - each candidate block ≤ 200 chars
+  //   - each candidate block ≤ 2 sentence-ending punctuation marks
+  //   - candidates must be ≥70% of the total blocks (mixed prose+lists not OK)
+  const blocks = text
+    .split(/\n\s*\n/)
+    .map((b) => b.replace(/[ \t]+/g, " ").replace(/\n+/g, " ").trim())
+    .filter((b) => b);
+  if (blocks.length < 3) return out;
+  const candidates = blocks.filter(
+    (b) => b.length <= 200 && (b.match(/[.!?]/g)?.length ?? 0) <= 2,
+  );
+  if (candidates.length >= 3 && candidates.length >= blocks.length * 0.7) {
+    return candidates;
   }
   return out;
 }
