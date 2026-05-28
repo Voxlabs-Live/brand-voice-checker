@@ -1,0 +1,120 @@
+---
+// VoiceDocSummary — collapsed view of the currently-selected voice doc.
+// Replaces the full form for repeat users: one-line readout + inline client
+// switcher + Edit / New buttons. HTML scaffold; index.astro mounts the
+// behavior and toggles between this and the full form.
+---
+<div class="doc-summary" data-doc-summary>
+  <div class="doc-summary__head">
+    <div class="doc-summary__title">
+      <span class="doc-summary__client" data-summary-client>—</span>
+      <span class="doc-summary__vertical" data-summary-vertical></span>
+    </div>
+    <div class="doc-summary__strength" data-summary-strength>
+      <span class="doc-summary__score" data-summary-score>—</span>
+      <span class="doc-summary__score-label">/10 doc strength</span>
+    </div>
+  </div>
+
+  <p class="doc-summary__tone" data-summary-tone></p>
+  <p class="doc-summary__stats" data-summary-stats></p>
+
+  <div class="doc-summary__actions">
+    <button type="button" class="btn btn--ghost btn--small" data-summary-edit>Edit doc</button>
+    <select class="input input--small doc-summary__switcher" data-summary-switcher aria-label="Switch client">
+      <option value="">Switch client…</option>
+    </select>
+    <button type="button" class="btn btn--ghost btn--small" data-summary-new>+ New client</button>
+    <button type="button" class="btn btn--ghost btn--small" data-summary-import>Import from file</button>
+  </div>
+</div>
+
+<style>
+  .doc-summary {
+    background: var(--surface-50);
+    border: 1px solid var(--surface-200);
+    border-radius: var(--radius-lg);
+    padding: 1.1rem 1.35rem 1.2rem;
+  }
+  .doc-summary[data-band="weak"] { border-left: 3px solid var(--accent-500); }
+  .doc-summary[data-band="workable"] { border-left: 3px solid var(--amber-600); }
+  .doc-summary[data-band="solid"] { border-left: 3px solid var(--surface-700); }
+  .doc-summary[data-band="strong"] { border-left: 3px solid var(--surface-900); }
+
+  .doc-summary__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 0.45rem;
+  }
+
+  .doc-summary__title {
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .doc-summary__client {
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--surface-900);
+    line-height: 1.1;
+  }
+  .doc-summary__vertical {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--surface-600);
+  }
+
+  .doc-summary__strength {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    white-space: nowrap;
+  }
+  .doc-summary__score {
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+    color: var(--surface-900);
+  }
+  .doc-summary[data-band="weak"] .doc-summary__score { color: var(--accent-500); }
+  .doc-summary[data-band="workable"] .doc-summary__score { color: var(--amber-700); }
+  .doc-summary__score-label {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--surface-600);
+  }
+
+  .doc-summary__tone {
+    margin: 0 0 0.25rem;
+    font-size: var(--text-sm);
+    color: var(--surface-700);
+  }
+  .doc-summary__stats {
+    margin: 0 0 0.85rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--surface-600);
+    letter-spacing: 0.02em;
+  }
+
+  .doc-summary__actions {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .doc-summary__switcher {
+    min-width: 12rem;
+    font-family: var(--font-mono);
+  }
+</style>

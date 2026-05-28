@@ -5,6 +5,7 @@ import RateLimitWall from "../components/RateLimitWall.astro";
 import VoiceResult from "../components/VoiceResult.astro";
 import VoiceDocForm from "../components/VoiceDocForm.astro";
 import VoiceDocPicker from "../components/VoiceDocPicker.astro";
+import VoiceDocSummary from "../components/VoiceDocSummary.astro";
 import UploadDoc from "../components/UploadDoc.astro";
 import DocCritiquePanel from "../components/DocCritiquePanel.astro";
 
@@ -19,54 +20,237 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     Catch off-brand copy before it goes to the <em>client</em>.
   </h1>
   <p class="tool-lede">
-    Build a structured voice doc for each client. The tool scores drafts
-    deterministically on vocabulary and punctuation, and pairwise-judges tone
-    and cadence against your voice-on / voice-off examples. Every flag cites
-    the specific rule it violates.
+    Build a voice doc for each client, then check drafts against it. Flags
+    cite the specific rule each violation breaks.
   </p>
 
-  <section class="card">
-    <VoiceDocPicker />
-    <details class="samples-details" open>
-      <summary class="samples-details__summary">Try with a built-in sample →</summary>
-      <div class="samples" data-samples-row></div>
-    </details>
-    <UploadDoc />
-    <DocCritiquePanel />
-    <VoiceDocForm />
+  <!-- ─── STAGE 01 — Voice doc ─────────────────────────────────────────── -->
+  <section class="stage" data-stage="voice-doc" data-mode="empty">
+    <header class="stage__head">
+      <span class="stage__num">01</span>
+      <h2 class="stage__title">Voice doc</h2>
+      <span class="stage__status" data-stage-status>Pick how to start</span>
+    </header>
+
+    <!-- Empty state: no saved docs -->
+    <div class="stage__body stage__body--empty" data-mode-view="empty">
+      <p class="stage-empty__lead">
+        Build a structured voice doc — the tool needs this to score drafts.
+        Pick how you want to start:
+      </p>
+      <div class="stage-empty__actions">
+        <button type="button" class="card-btn" data-empty-build>
+          <span class="card-btn__title">Build from scratch</span>
+          <span class="card-btn__desc">Walk through 10 sections in the form. Takes about 30 minutes with your client.</span>
+        </button>
+        <button type="button" class="card-btn" data-empty-import>
+          <span class="card-btn__title">Import existing doc</span>
+          <span class="card-btn__desc">Drop a PDF, Word, or Markdown doc. We'll extract what we can and critique the rest.</span>
+        </button>
+        <button type="button" class="card-btn" data-empty-sample>
+          <span class="card-btn__title">Try a sample</span>
+          <span class="card-btn__desc">Load Aurelia Lashes, Mantra Yoga, or Dr. Eckhardt Clinic to see scoring in action.</span>
+        </button>
+      </div>
+      <div class="stage-empty__samples" data-empty-samples hidden>
+        <p class="stage-empty__hint">Pick a sample:</p>
+        <div class="samples" data-samples-row></div>
+      </div>
+    </div>
+
+    <!-- Summary state: doc selected, not editing -->
+    <div class="stage__body stage__body--summary" data-mode-view="summary" hidden>
+      <VoiceDocSummary />
+    </div>
+
+    <!-- Editing state: full form + picker + upload + critique -->
+    <div class="stage__body stage__body--editing" data-mode-view="editing" hidden>
+      <VoiceDocPicker />
+      <details class="samples-details">
+        <summary class="samples-details__summary">Try with a built-in sample →</summary>
+        <div class="samples" data-samples-row-editing></div>
+      </details>
+      <UploadDoc />
+      <DocCritiquePanel />
+      <VoiceDocForm />
+      <div class="stage__footer">
+        <button type="button" class="btn btn--ghost" data-editing-cancel>Cancel</button>
+        <button type="button" class="btn btn--primary" data-editing-done>Done editing →</button>
+      </div>
+    </div>
   </section>
 
-  <section class="card card--draft">
-    <div class="draft-block">
-      <label class="field-label" for="draft">
-        Draft to check
-        <span class="field-hint">Caption, email, post, anything client-facing</span>
-      </label>
+  <!-- ─── STAGE 02 — Draft ─────────────────────────────────────────────── -->
+  <section class="stage" data-stage="draft">
+    <header class="stage__head">
+      <span class="stage__num">02</span>
+      <h2 class="stage__title">Draft to check</h2>
+      <span class="stage__status" data-draft-target></span>
+    </header>
+    <div class="stage__body">
+      <label class="field-label visually-hidden" for="draft">Draft to check</label>
       <textarea
         class="input"
         id="draft"
         name="draft"
-        placeholder="Paste the draft copy you want to check..."
-        rows="7"
+        placeholder="Paste the draft copy you want to check — caption, email, post, anything client-facing..."
+        rows="6"
       ></textarea>
-    </div>
-    <div class="actions">
-      <button class="btn btn--primary" id="submit">Check voice fit &rarr;</button>
-      <LoadingStages stages={["Reading", "Scoring", "Done"]} />
-      <span class="actions__hint" id="hint"></span>
+      <div class="actions">
+        <button class="btn btn--primary" id="submit">Check voice fit &rarr;</button>
+        <LoadingStages stages={["Reading", "Scoring", "Done"]} />
+        <span class="actions__hint" id="hint"></span>
+      </div>
     </div>
   </section>
 
-  <VoiceResult />
+  <!-- ─── STAGE 03 — Result (revealed after first submit) ──────────────── -->
+  <section class="stage stage--result" data-stage="result" hidden>
+    <header class="stage__head">
+      <span class="stage__num">03</span>
+      <h2 class="stage__title">Result</h2>
+    </header>
+    <div class="stage__body">
+      <VoiceResult />
+    </div>
+  </section>
+
   <RateLimitWall repoUrl={REPO_URL} />
 </ToolLayout>
 
 <style>
-  .card--draft { margin-top: 1.25rem; }
-  .draft-block { margin-bottom: 0.85rem; }
+  /* Stage layout — three vertical cards with numbered headers. */
+  .stage {
+    background: var(--surface-0);
+    border: 1px solid var(--surface-200);
+    border-radius: var(--radius-lg);
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .stage:last-of-type { margin-bottom: 0; }
 
+  .stage__head {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.9rem 1.5rem;
+    border-bottom: 1px solid var(--surface-150);
+    background: var(--surface-50);
+  }
+  .stage__num {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--surface-500);
+    letter-spacing: 0.05em;
+  }
+  .stage__title {
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-semibold);
+    margin: 0;
+    color: var(--surface-900);
+  }
+  .stage__status {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--surface-600);
+    text-align: right;
+  }
+  .stage__body {
+    padding: 1.25rem 1.5rem 1.5rem;
+  }
+  .stage__body--empty,
+  .stage__body--summary {
+    padding: 1.25rem 1.5rem 1.5rem;
+  }
+  .stage__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--surface-200);
+  }
+
+  /* Active stage gets a stronger left-edge treatment so the eye knows where
+     to go without changing the overall card style. */
+  .stage[data-active="true"] {
+    border-color: var(--surface-300);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* ─── Empty-state CTAs ──────────────────────────────────────────────── */
+  .stage-empty__lead {
+    margin: 0 0 1rem;
+    color: var(--surface-700);
+    font-size: var(--text-base);
+  }
+  .stage-empty__actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+  }
+  @media (max-width: 760px) {
+    .stage-empty__actions { grid-template-columns: 1fr; }
+  }
+  .card-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.45rem;
+    text-align: left;
+    background: var(--surface-50);
+    border: 1px solid var(--surface-200);
+    border-radius: var(--radius);
+    padding: 1rem 1.1rem;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s, transform 0.08s;
+    font-family: inherit;
+    color: inherit;
+  }
+  .card-btn:hover {
+    border-color: var(--accent-400);
+    background: oklch(from var(--accent-50) l c h / 0.6);
+  }
+  .card-btn:active { transform: translateY(1px); }
+  .card-btn__title {
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--surface-900);
+  }
+  .card-btn__desc {
+    font-size: var(--text-sm);
+    color: var(--surface-700);
+    line-height: var(--leading-normal);
+  }
+  .stage-empty__samples {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--surface-200);
+  }
+  .stage-empty__hint {
+    margin: 0 0 0.5rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--surface-600);
+  }
+  .samples {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+
+  /* ─── Editing-mode trimmings ────────────────────────────────────────── */
   .samples-details {
-    margin-bottom: 1.25rem;
+    margin: 0.5rem 0 1rem;
   }
   .samples-details__summary {
     font-family: var(--font-mono);
@@ -78,11 +262,23 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   }
   .samples-details__summary::-webkit-details-marker { display: none; }
   .samples-details[open] .samples-details__summary { margin-bottom: 0.5rem; }
-  .samples {
-    display: flex;
-    gap: 0.4rem;
-    flex-wrap: wrap;
-    padding: 0.4rem 0;
+
+  /* The form inside editing mode loses its own outer card chrome since the
+     stage is already a card. */
+  .stage__body--editing .voice-form {
+    box-shadow: none;
+    border-color: var(--surface-150);
+  }
+
+  /* Visually hide a label but keep it for screen readers. */
+  .visually-hidden {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 </style>
 
@@ -107,41 +303,379 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   import type { ApiResponse } from "../lib/types";
   import type { ImportResult } from "./api/import-doc";
 
+  type Mode = "empty" | "summary" | "editing";
+  let mode: Mode = "empty";
+  /** The doc the user is currently scoring against (and editing, in editing mode). */
+  let currentDoc: VoiceDoc = emptyVoiceDoc();
+  /** Snapshot used to detect unsaved changes when "Done editing" or "Cancel" is clicked. */
+  let editingBaselineId = "";
+
   const $ = (sel: string) => document.querySelector(sel) as HTMLElement | null;
   const draftInput = $("#draft") as HTMLTextAreaElement;
   const submitBtn = $("#submit") as HTMLButtonElement;
   const hint = $("#hint");
   const loading = document.querySelector(".loading") as HTMLElement | null;
-  const result = document.querySelector(".result") as HTMLElement | null;
+  const resultPanel = document.querySelector(".result") as HTMLElement | null;
+  const resultStage = document.querySelector('[data-stage="result"]') as HTMLElement | null;
   const wall = document.querySelector(".wall") as HTMLElement | null;
 
-  const formRoot = document.querySelector(".voice-form") as HTMLElement;
-  const pickerSelect = document.querySelector("[data-picker-select]") as HTMLSelectElement;
-  const pickerStatus = document.querySelector("[data-picker-status]") as HTMLElement;
-  const pickerNew = document.querySelector("[data-picker-new]") as HTMLButtonElement;
-  const pickerDup = document.querySelector("[data-picker-duplicate]") as HTMLButtonElement;
-  const pickerDel = document.querySelector("[data-picker-delete]") as HTMLButtonElement;
-  const pickerSave = document.querySelector("[data-picker-save]") as HTMLButtonElement;
-  const samplesRow = document.querySelector("[data-samples-row]") as HTMLElement;
+  const stageVoiceDoc = document.querySelector('[data-stage="voice-doc"]') as HTMLElement;
+  const stageStatus = stageVoiceDoc.querySelector('[data-stage-status]') as HTMLElement;
+  const draftStatus = document.querySelector('[data-draft-target]') as HTMLElement;
+  const emptyView = stageVoiceDoc.querySelector('[data-mode-view="empty"]') as HTMLElement;
+  const summaryView = stageVoiceDoc.querySelector('[data-mode-view="summary"]') as HTMLElement;
+  const editingView = stageVoiceDoc.querySelector('[data-mode-view="editing"]') as HTMLElement;
+
+  // Empty-state controls.
+  const emptyBuildBtn = stageVoiceDoc.querySelector('[data-empty-build]') as HTMLButtonElement;
+  const emptyImportBtn = stageVoiceDoc.querySelector('[data-empty-import]') as HTMLButtonElement;
+  const emptySampleBtn = stageVoiceDoc.querySelector('[data-empty-sample]') as HTMLButtonElement;
+  const emptySamplesBox = stageVoiceDoc.querySelector('[data-empty-samples]') as HTMLElement;
+  const emptySamplesRow = stageVoiceDoc.querySelector('[data-samples-row]') as HTMLElement;
+
+  // Summary controls.
+  const summaryRoot = summaryView.querySelector('[data-doc-summary]') as HTMLElement;
+  const summaryClient = summaryRoot.querySelector('[data-summary-client]') as HTMLElement;
+  const summaryVertical = summaryRoot.querySelector('[data-summary-vertical]') as HTMLElement;
+  const summaryScore = summaryRoot.querySelector('[data-summary-score]') as HTMLElement;
+  const summaryTone = summaryRoot.querySelector('[data-summary-tone]') as HTMLElement;
+  const summaryStats = summaryRoot.querySelector('[data-summary-stats]') as HTMLElement;
+  const summaryEditBtn = summaryRoot.querySelector('[data-summary-edit]') as HTMLButtonElement;
+  const summarySwitcher = summaryRoot.querySelector('[data-summary-switcher]') as HTMLSelectElement;
+  const summaryNewBtn = summaryRoot.querySelector('[data-summary-new]') as HTMLButtonElement;
+  const summaryImportBtn = summaryRoot.querySelector('[data-summary-import]') as HTMLButtonElement;
+
+  // Editing controls.
+  const formRoot = editingView.querySelector('.voice-form') as HTMLElement;
+  const pickerSelect = editingView.querySelector('[data-picker-select]') as HTMLSelectElement;
+  const pickerStatus = editingView.querySelector('[data-picker-status]') as HTMLElement;
+  const pickerNew = editingView.querySelector('[data-picker-new]') as HTMLButtonElement;
+  const pickerDup = editingView.querySelector('[data-picker-duplicate]') as HTMLButtonElement;
+  const pickerDel = editingView.querySelector('[data-picker-delete]') as HTMLButtonElement;
+  const pickerSave = editingView.querySelector('[data-picker-save]') as HTMLButtonElement;
+  const editingSamplesRow = editingView.querySelector('[data-samples-row-editing]') as HTMLElement;
   const strengthBox = formRoot.querySelector('[data-field="strength_meter"]') as HTMLElement;
   const strengthScore = formRoot.querySelector('[data-field="strength_score"]') as HTMLElement;
   const strengthSummary = formRoot.querySelector('[data-field="strength_summary"]') as HTMLElement;
+  const doneEditingBtn = editingView.querySelector('[data-editing-done]') as HTMLButtonElement;
+  const cancelEditingBtn = editingView.querySelector('[data-editing-cancel]') as HTMLButtonElement;
+  const uploadDetails = editingView.querySelector('[data-upload]') as HTMLDetailsElement | null;
+  const uploadDrop = editingView.querySelector('[data-upload-drop]') as HTMLElement | null;
+  const uploadInput = editingView.querySelector('[data-upload-input]') as HTMLInputElement | null;
+  const uploadStatus = editingView.querySelector('[data-upload-status]') as HTMLElement | null;
+  const critiquePanel = editingView.querySelector('[data-critique]') as HTMLElement | null;
 
-  let form: FormHandle = mountForm(formRoot);
-  let currentDoc: VoiceDoc = emptyVoiceDoc();
-
-  // Seed samples on first visit so the dropdown is non-empty out of the box.
-  seedSamplesIfNeeded(SAMPLE_DOCS);
-  refreshPicker();
-  selectInitialDoc();
-  updateStrength();
-
+  const form: FormHandle = mountForm(formRoot);
   form.onChange((doc) => {
     currentDoc = doc;
-    updateStrength();
+    updateStrengthMeter();
   });
 
-  function refreshPicker(): void {
+  // Bootstrap.
+  seedSamplesIfNeeded(SAMPLE_DOCS);
+  populateAllSamplesRows();
+  populatePickerSelect();
+  populateSummarySwitcher();
+  initialMode();
+
+  function initialMode(): void {
+    const docs = listDocs();
+    if (docs.length === 0) {
+      setMode("empty");
+    } else {
+      currentDoc = docs[0];
+      pickerSelect.value = currentDoc.id;
+      form.setDoc(currentDoc);
+      summarySwitcher.value = currentDoc.id;
+      setMode("summary");
+    }
+  }
+
+  function setMode(next: Mode): void {
+    mode = next;
+    stageVoiceDoc.dataset.mode = next;
+    emptyView.hidden = next !== "empty";
+    summaryView.hidden = next !== "summary";
+    editingView.hidden = next !== "editing";
+    stageVoiceDoc.dataset.active = next === "editing" ? "true" : "false";
+    refreshStageStatus();
+    refreshDraftTarget();
+    updateSubmitEnabled();
+    if (next === "summary") renderSummary();
+  }
+
+  function refreshStageStatus(): void {
+    if (mode === "empty") {
+      stageStatus.textContent = "Pick how to start";
+    } else if (mode === "summary") {
+      stageStatus.textContent = "Ready";
+    } else {
+      stageStatus.textContent = "Editing";
+    }
+  }
+
+  function refreshDraftTarget(): void {
+    if (mode === "summary" && currentDoc.client_name) {
+      draftStatus.textContent = `Scoring against ${currentDoc.client_name}`;
+    } else if (mode === "editing") {
+      draftStatus.textContent = "Finish editing the voice doc first";
+    } else {
+      draftStatus.textContent = "No voice doc yet";
+    }
+  }
+
+  function updateSubmitEnabled(): void {
+    const docOk =
+      currentDoc.client_name.trim() &&
+      (currentDoc.banned_words.length > 0 ||
+        currentDoc.voice_on_examples.length > 0);
+    const draftOk = draftInput.value.trim().length > 0;
+    const enabled = !!docOk && draftOk && mode !== "editing";
+    submitBtn.disabled = !enabled;
+  }
+  draftInput.addEventListener("input", updateSubmitEnabled);
+
+  // ─── Sample buttons (empty state + editing mode) ────────────────────
+  function populateAllSamplesRows(): void {
+    for (const row of [emptySamplesRow, editingSamplesRow]) {
+      if (!row) continue;
+      row.innerHTML = "";
+      for (const s of VOICE_SAMPLES) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn btn--ghost btn--small";
+        btn.textContent = s.client;
+        btn.addEventListener("click", () => {
+          // Make sure the sample doc is saved (it should be from seedSamples,
+          // but the on-brand control shares Aurelia's id so we re-resolve).
+          const sourceId = s.voiceDoc.id;
+          let saved = getDoc(sourceId);
+          if (!saved) saved = saveDoc(s.voiceDoc);
+          currentDoc = saved;
+          form.setDoc(saved);
+          draftInput.value = s.draft;
+          populatePickerSelect();
+          populateSummarySwitcher();
+          pickerSelect.value = saved.id;
+          summarySwitcher.value = saved.id;
+          setMode("summary");
+          updateStrengthMeter();
+          updateSubmitEnabled();
+        });
+        row.appendChild(btn);
+      }
+    }
+  }
+
+  // ─── Empty-state actions ─────────────────────────────────────────────
+  emptyBuildBtn.addEventListener("click", () => {
+    currentDoc = emptyVoiceDoc();
+    form.setDoc(currentDoc);
+    editingBaselineId = "";
+    if (uploadDetails) uploadDetails.open = false;
+    setMode("editing");
+    setPickerStatus("New blank doc — fill in the form, then click Save changes.", "warn");
+  });
+  emptyImportBtn.addEventListener("click", () => {
+    currentDoc = emptyVoiceDoc();
+    form.setDoc(currentDoc);
+    editingBaselineId = "";
+    if (uploadDetails) uploadDetails.open = true;
+    setMode("editing");
+    setPickerStatus("Drop your existing voice doc into the upload area.", "warn");
+    // Scroll the upload area into view inside the form.
+    uploadDetails?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+  emptySampleBtn.addEventListener("click", () => {
+    emptySamplesBox.hidden = false;
+    emptySamplesBox.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  // ─── Summary actions ─────────────────────────────────────────────────
+  summaryEditBtn.addEventListener("click", () => {
+    editingBaselineId = currentDoc.id;
+    pickerSelect.value = currentDoc.id;
+    form.setDoc(currentDoc);
+    setMode("editing");
+    setPickerStatus("");
+  });
+  summarySwitcher.addEventListener("change", () => {
+    const doc = getDoc(summarySwitcher.value);
+    if (doc) {
+      currentDoc = doc;
+      pickerSelect.value = doc.id;
+      form.setDoc(doc);
+      setMode("summary");
+    }
+  });
+  summaryNewBtn.addEventListener("click", () => {
+    currentDoc = emptyVoiceDoc();
+    form.setDoc(currentDoc);
+    editingBaselineId = "";
+    if (uploadDetails) uploadDetails.open = false;
+    setMode("editing");
+    setPickerStatus("New blank doc — fill in the form, then click Save changes.", "warn");
+  });
+  summaryImportBtn.addEventListener("click", () => {
+    currentDoc = emptyVoiceDoc();
+    form.setDoc(currentDoc);
+    editingBaselineId = "";
+    if (uploadDetails) uploadDetails.open = true;
+    setMode("editing");
+    uploadDetails?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  // ─── Editing-mode picker + form interactions ─────────────────────────
+  pickerSelect.addEventListener("change", () => {
+    const doc = getDoc(pickerSelect.value);
+    if (doc) {
+      currentDoc = doc;
+      form.setDoc(doc);
+      updateStrengthMeter();
+      setPickerStatus("");
+    }
+  });
+  pickerNew.addEventListener("click", () => {
+    const blank = emptyVoiceDoc();
+    currentDoc = blank;
+    form.setDoc(blank);
+    pickerSelect.value = "";
+    updateStrengthMeter();
+    setPickerStatus("New blank doc — give it a client name and save.", "warn");
+  });
+  pickerDup.addEventListener("click", () => {
+    if (!pickerSelect.value) {
+      setPickerStatus("Select a doc to duplicate.", "warn");
+      return;
+    }
+    const copy = duplicateDoc(pickerSelect.value);
+    if (copy) {
+      currentDoc = copy;
+      populatePickerSelect();
+      populateSummarySwitcher();
+      pickerSelect.value = copy.id;
+      form.setDoc(copy);
+      updateStrengthMeter();
+      setPickerStatus(`Duplicated as "${copy.client_name}".`, "saved");
+    }
+  });
+  pickerDel.addEventListener("click", () => {
+    const id = pickerSelect.value;
+    if (!id) {
+      setPickerStatus("Select a doc to delete.", "warn");
+      return;
+    }
+    if (id.startsWith(SAMPLE_ID_PREFIX)) {
+      setPickerStatus(
+        "Sample docs can't be deleted (they re-seed on next visit). Duplicate it first if you want to modify.",
+        "warn"
+      );
+      return;
+    }
+    const doc = getDoc(id);
+    if (!doc) return;
+    if (!confirm(`Delete "${doc.client_name}"? This can't be undone.`)) return;
+    deleteDoc(id);
+    populatePickerSelect();
+    populateSummarySwitcher();
+    // Reset to first remaining doc.
+    const remaining = listDocs();
+    if (remaining.length > 0) {
+      currentDoc = remaining[0];
+      pickerSelect.value = currentDoc.id;
+      form.setDoc(currentDoc);
+    } else {
+      currentDoc = emptyVoiceDoc();
+      form.setDoc(currentDoc);
+    }
+    updateStrengthMeter();
+    setPickerStatus("Deleted.", "saved");
+  });
+  pickerSave.addEventListener("click", () => {
+    const saved = persistCurrent();
+    if (saved) setPickerStatus(`Saved "${saved.client_name}".`, "saved");
+  });
+
+  doneEditingBtn.addEventListener("click", () => {
+    const saved = persistCurrent();
+    if (!saved) return; // validation failed; stay in editing
+    currentDoc = saved;
+    populatePickerSelect();
+    populateSummarySwitcher();
+    summarySwitcher.value = saved.id;
+    setMode("summary");
+  });
+  cancelEditingBtn.addEventListener("click", () => {
+    if (editingBaselineId) {
+      const baseline = getDoc(editingBaselineId);
+      if (baseline) {
+        currentDoc = baseline;
+        form.setDoc(baseline);
+        setMode("summary");
+        return;
+      }
+    }
+    // No baseline (was creating a new doc) — back to empty if no saved docs,
+    // else go to summary with first doc.
+    const docs = listDocs();
+    if (docs.length === 0) setMode("empty");
+    else {
+      currentDoc = docs[0];
+      pickerSelect.value = currentDoc.id;
+      form.setDoc(currentDoc);
+      setMode("summary");
+    }
+  });
+
+  function persistCurrent(): VoiceDoc | null {
+    const doc = form.readDoc();
+    if (!doc.client_name.trim()) {
+      setPickerStatus("Add a client name before saving.", "warn");
+      return null;
+    }
+    return saveDoc(doc);
+  }
+
+  function setPickerStatus(message: string, state?: "saved" | "warn"): void {
+    pickerStatus.textContent = message;
+    if (state) pickerStatus.dataset.state = state;
+    else delete pickerStatus.dataset.state;
+  }
+
+  // ─── Strength meter + summary rendering ──────────────────────────────
+  function updateStrengthMeter(): void {
+    const strength = computeDocStrength(currentDoc);
+    strengthScore.textContent = String(strength.score);
+    strengthSummary.textContent = strength.summary;
+    strengthBox.dataset.band = bandLabelFor(strength.score);
+    updateSubmitEnabled();
+  }
+
+  function renderSummary(): void {
+    const strength = computeDocStrength(currentDoc);
+    summaryClient.textContent = currentDoc.client_name || "(untitled doc)";
+    summaryVertical.textContent = currentDoc.vertical || "";
+    summaryScore.textContent = String(strength.score);
+    summaryRoot.dataset.band = bandLabelFor(strength.score);
+    const tones = currentDoc.tone_words.filter((t) => t.trim()).join(" · ");
+    summaryTone.textContent = tones || "(no tone words set)";
+    summaryStats.textContent = [
+      `${currentDoc.banned_words.length} banned words`,
+      `${currentDoc.voice_on_examples.length} voice-on examples`,
+      `${currentDoc.voice_off_examples.length} voice-off examples`,
+      `${currentDoc.examples_gallery.length} gallery entries`,
+    ].join(" · ");
+  }
+
+  function bandLabelFor(score: number): string {
+    if (score >= 9) return "strong";
+    if (score >= 7) return "solid";
+    if (score >= 5) return "workable";
+    return "weak";
+  }
+
+  // ─── Picker + summary-switcher option lists ──────────────────────────
+  function populatePickerSelect(): void {
     const docs = listDocs();
     pickerSelect.innerHTML = "";
     if (docs.length === 0) {
@@ -149,6 +683,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       opt.value = "";
       opt.textContent = "(no saved docs yet)";
       pickerSelect.appendChild(opt);
+      return;
     }
     for (const d of docs) {
       const opt = document.createElement("option");
@@ -158,130 +693,26 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       pickerSelect.appendChild(opt);
     }
   }
-
-  function selectInitialDoc(): void {
+  function populateSummarySwitcher(): void {
     const docs = listDocs();
+    summarySwitcher.innerHTML = "";
     if (docs.length === 0) {
-      currentDoc = emptyVoiceDoc();
-      form.setDoc(currentDoc);
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "(no saved docs)";
+      summarySwitcher.appendChild(opt);
       return;
     }
-    const first = docs[0];
-    pickerSelect.value = first.id;
-    currentDoc = first;
-    form.setDoc(first);
+    for (const d of docs) {
+      const opt = document.createElement("option");
+      opt.value = d.id;
+      const isSample = d.id.startsWith(SAMPLE_ID_PREFIX);
+      opt.textContent = isSample ? `${d.client_name} — sample` : d.client_name;
+      summarySwitcher.appendChild(opt);
+    }
   }
 
-  pickerSelect.addEventListener("change", () => {
-    const doc = getDoc(pickerSelect.value);
-    if (doc) {
-      currentDoc = doc;
-      form.setDoc(doc);
-      updateStrength();
-      setStatus("");
-    }
-  });
-
-  pickerNew.addEventListener("click", () => {
-    const blank = emptyVoiceDoc();
-    currentDoc = blank;
-    form.setDoc(blank);
-    pickerSelect.value = "";
-    updateStrength();
-    setStatus("New blank doc — give it a client name and save.", "warn");
-  });
-
-  pickerDup.addEventListener("click", () => {
-    const id = pickerSelect.value;
-    if (!id) {
-      setStatus("Select a doc to duplicate.", "warn");
-      return;
-    }
-    const copy = duplicateDoc(id);
-    if (copy) {
-      refreshPicker();
-      pickerSelect.value = copy.id;
-      currentDoc = copy;
-      form.setDoc(copy);
-      updateStrength();
-      setStatus(`Duplicated as "${copy.client_name}".`, "saved");
-    }
-  });
-
-  pickerDel.addEventListener("click", () => {
-    const id = pickerSelect.value;
-    if (!id) {
-      setStatus("Select a doc to delete.", "warn");
-      return;
-    }
-    if (id.startsWith(SAMPLE_ID_PREFIX)) {
-      setStatus("Sample docs can't be deleted (they re-seed on next visit). Duplicate it first if you want to modify.", "warn");
-      return;
-    }
-    const doc = getDoc(id);
-    if (!doc) return;
-    if (!confirm(`Delete "${doc.client_name}"? This can't be undone.`)) return;
-    deleteDoc(id);
-    refreshPicker();
-    selectInitialDoc();
-    updateStrength();
-    setStatus("Deleted.", "saved");
-  });
-
-  pickerSave.addEventListener("click", () => {
-    const doc = form.readDoc();
-    if (!doc.client_name.trim()) {
-      setStatus("Add a client name before saving.", "warn");
-      return;
-    }
-    const saved = saveDoc(doc);
-    currentDoc = saved;
-    refreshPicker();
-    pickerSelect.value = saved.id;
-    setStatus(`Saved "${saved.client_name}".`, "saved");
-  });
-
-  // Sample buttons: load the sample doc into the form AND populate the draft
-  // textarea with the matching off-brand draft so the demo flow works.
-  for (const s of VOICE_SAMPLES) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "btn btn--ghost btn--small";
-    btn.textContent = s.client;
-    btn.addEventListener("click", () => {
-      currentDoc = s.voiceDoc;
-      form.setDoc(s.voiceDoc);
-      pickerSelect.value = s.voiceDoc.id;
-      draftInput.value = s.draft;
-      updateStrength();
-      setStatus(`Loaded sample "${s.client}".`, "saved");
-    });
-    samplesRow.appendChild(btn);
-  }
-
-  function setStatus(message: string, state?: "saved" | "warn"): void {
-    pickerStatus.textContent = message;
-    if (state) pickerStatus.dataset.state = state;
-    else delete pickerStatus.dataset.state;
-  }
-
-  function updateStrength(): void {
-    const strength = computeDocStrength(currentDoc);
-    strengthScore.textContent = String(strength.score);
-    strengthSummary.textContent = strength.summary;
-    strengthBox.dataset.band =
-      strength.score >= 9 ? "strong" :
-      strength.score >= 7 ? "solid" :
-      strength.score >= 5 ? "workable" : "weak";
-  }
-
-  // ─── Upload + critique wiring ──────────────────────────────────────────
-  const uploadDetails = document.querySelector("[data-upload]") as HTMLDetailsElement | null;
-  const uploadDrop = document.querySelector("[data-upload-drop]") as HTMLElement | null;
-  const uploadInput = document.querySelector("[data-upload-input]") as HTMLInputElement | null;
-  const uploadStatus = document.querySelector("[data-upload-status]") as HTMLElement | null;
-  const critiquePanel = document.querySelector("[data-critique]") as HTMLElement | null;
-
+  // ─── Upload + critique ───────────────────────────────────────────────
   if (uploadDrop && uploadInput) {
     ["dragenter", "dragover"].forEach((evt) => {
       uploadDrop.addEventListener(evt, (e) => {
@@ -326,7 +757,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       uploadStatus.dataset.state = "success";
       uploadStatus.textContent = payload.data.cached
         ? "Re-imported from cache (identical to a previous upload)."
-        : `Imported ${payload.data.filename}. Review the suggestions and click "Save changes" to keep this doc.`;
+        : `Imported ${payload.data.filename}. Review the suggestions, then click Save changes.`;
       delete uploadDrop.dataset.state;
       applyImport(payload.data);
     } catch (err) {
@@ -337,33 +768,30 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   }
 
   function applyImport(result: ImportResult): void {
-    // Populate the form with the imported doc.
     currentDoc = result.doc;
     form.setDoc(result.doc);
-    pickerSelect.value = ""; // not yet saved — user must click Save changes
-    updateStrength();
-    // Render the critique panel.
+    pickerSelect.value = "";
+    updateStrengthMeter();
     renderCritique(result);
-    setStatus(
+    setPickerStatus(
       `Imported "${result.doc.client_name}" from ${result.filename}. Review and save.`,
       "saved"
     );
-    // Collapse the upload area so the user can focus on review.
     if (uploadDetails) uploadDetails.open = false;
     if (critiquePanel) critiquePanel.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   const SECTION_LABELS: Record<number, string> = {
-    1: "§1 Tone words",
-    2: "§2 Banned words",
-    3: "§3 Cadence rules",
-    4: "§4 Voice-on examples",
-    5: "§5 Voice-off examples",
-    6: "§6 Punctuation",
-    7: "§7 CTA rules",
-    8: "§8 Terminology",
-    9: "§9 Exceptions",
-    10: "§10 Examples gallery",
+    1: "Tone words",
+    2: "Banned words",
+    3: "Cadence rules",
+    4: "Voice-on examples",
+    5: "Voice-off examples",
+    6: "Punctuation",
+    7: "CTA rules",
+    8: "Terminology",
+    9: "Exceptions",
+    10: "Examples gallery",
   };
 
   function renderCritique(result: ImportResult): void {
@@ -373,12 +801,8 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     const summaryEl = critiquePanel.querySelector('[data-field="critique_summary"]') as HTMLElement;
     scoreEl.textContent = String(result.strength.score);
     summaryEl.textContent = result.strength.summary;
-    critiquePanel.dataset.band =
-      result.strength.score >= 9 ? "strong" :
-      result.strength.score >= 7 ? "solid" :
-      result.strength.score >= 5 ? "workable" : "weak";
+    critiquePanel.dataset.band = bandLabelFor(result.strength.score);
 
-    // Per-section status list.
     const sectionsList = critiquePanel.querySelector('[data-field="critique_sections"]') as HTMLElement;
     sectionsList.innerHTML = "";
     for (const s of result.strength.sections) {
@@ -394,7 +818,6 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       sectionsList.appendChild(li);
     }
 
-    // Suggestions.
     const sugList = critiquePanel.querySelector('[data-field="critique_suggestions"]') as HTMLElement;
     const sugEmpty = critiquePanel.querySelector('[data-field="critique_no_suggestions"]') as HTMLElement;
     sugList.innerHTML = "";
@@ -445,7 +868,6 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   }
 
   function applySuggestion(sug: ImportResult["suggestions"][number]): void {
-    // Read current doc, append example items to the right section, write back.
     const doc = form.readDoc();
     const items = sug.example_items ?? [];
     switch (sug.section) {
@@ -488,30 +910,29 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     }
     form.setDoc(doc);
     currentDoc = doc;
-    updateStrength();
+    updateStrengthMeter();
   }
 
-  const closeBtn = document.querySelector("[data-critique-close]") as HTMLButtonElement | null;
-  if (closeBtn && critiquePanel) {
-    closeBtn.addEventListener("click", () => (critiquePanel.hidden = true));
+  const critiqueCloseBtn = editingView.querySelector('[data-critique-close]') as HTMLButtonElement | null;
+  if (critiqueCloseBtn && critiquePanel) {
+    critiqueCloseBtn.addEventListener("click", () => (critiquePanel.hidden = true));
   }
 
-  // Submit — read structured doc + draft, POST to /api/check.
+  // ─── Submit: score the draft against the current doc ────────────────
   submitBtn.addEventListener("click", async () => {
-    const doc = form.readDoc();
+    const doc = currentDoc;
     const draft = draftInput.value.trim();
     if (!draft) {
       draftInput.focus();
       return;
     }
     if (!doc.client_name.trim() || doc.banned_words.length + doc.voice_on_examples.length === 0) {
-      setStatus("Voice doc is too thin to score reliably. Add at least banned words and voice-on examples.", "warn");
+      if (hint) hint.textContent = "Voice doc is too thin to score. Edit it and add banned words + voice-on examples first.";
       return;
     }
 
     submitBtn.disabled = true;
     if (hint) hint.textContent = "";
-    if (result) result.hidden = true;
     if (wall) wall.hidden = true;
     if (loading) {
       loading.hidden = false;
@@ -552,14 +973,14 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     } catch {
       if (hint) hint.textContent = "Network error. Try again.";
     } finally {
-      submitBtn.disabled = false;
+      updateSubmitEnabled();
       window.setTimeout(() => {
         if (loading) loading.hidden = true;
       }, 600);
     }
   });
 
-  // Copy actions — unchanged behavior.
+  // Copy actions on the result panel.
   document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const data = (window as any).__lastResult as VoiceResult | undefined;
@@ -574,14 +995,15 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   });
 
   function render(data: VoiceResult, originalDraft: string) {
-    if (!result) return;
-    result.hidden = false;
+    if (!resultPanel || !resultStage) return;
+    resultStage.hidden = false;
+    resultPanel.hidden = false;
 
-    const bandEl = result.querySelector(".band") as HTMLElement;
-    const bandLabel = result.querySelector('[data-field="band_label"]') as HTMLElement;
-    const compositeEl = result.querySelector('[data-field="composite_score"]') as HTMLElement;
-    const confidenceEl = result.querySelector('[data-field="confidence_badge"]') as HTMLElement;
-    const reason = result.querySelector('[data-field="score_reason"]') as HTMLElement;
+    const bandEl = resultPanel.querySelector(".band") as HTMLElement;
+    const bandLabel = resultPanel.querySelector('[data-field="band_label"]') as HTMLElement;
+    const compositeEl = resultPanel.querySelector('[data-field="composite_score"]') as HTMLElement;
+    const confidenceEl = resultPanel.querySelector('[data-field="confidence_badge"]') as HTMLElement;
+    const reason = resultPanel.querySelector('[data-field="score_reason"]') as HTMLElement;
 
     bandEl.dataset.band = data.band;
     bandLabel.textContent = data.band_label;
@@ -598,11 +1020,11 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
 
     renderSubScores(data);
 
-    const draftEl = result.querySelector('[data-field="highlightedDraft"]') as HTMLElement;
+    const draftEl = resultPanel.querySelector('[data-field="highlightedDraft"]') as HTMLElement;
     draftEl.innerHTML = highlight(originalDraft, data.flags.map((f) => f.phrase));
 
-    const flagsList = result.querySelector('[data-field="flags"]') as HTMLElement;
-    const flagsEmpty = result.querySelector('[data-field="flagsEmpty"]') as HTMLElement;
+    const flagsList = resultPanel.querySelector('[data-field="flags"]') as HTMLElement;
+    const flagsEmpty = resultPanel.querySelector('[data-field="flagsEmpty"]') as HTMLElement;
     flagsList.innerHTML = "";
     if (data.flags.length === 0) {
       flagsEmpty.hidden = false;
@@ -630,17 +1052,17 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       });
     }
 
-    const rewritten = result.querySelector('[data-field="rewritten_draft"]') as HTMLElement;
+    const rewritten = resultPanel.querySelector('[data-field="rewritten_draft"]') as HTMLElement;
     rewritten.textContent = data.rewritten_draft;
 
-    result.scrollIntoView({ behavior: "smooth", block: "start" });
+    resultStage.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function renderSubScores(data: VoiceResult) {
-    if (!result) return;
+    if (!resultPanel) return;
     const keys = ["vocabulary", "punctuation", "tone", "cadence"] as const;
     for (const key of keys) {
-      const el = result.querySelector(`.subscore[data-key="${key}"]`) as HTMLElement | null;
+      const el = resultPanel.querySelector(`.subscore[data-key="${key}"]`) as HTMLElement | null;
       if (!el) continue;
       const value = data.sub_scores[key];
       const valueEl = el.querySelector(".subscore__value") as HTMLElement;
