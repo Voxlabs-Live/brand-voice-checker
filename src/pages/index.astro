@@ -3,67 +3,49 @@ import ToolLayout from "../layouts/ToolLayout.astro";
 import LoadingStages from "../components/LoadingStages.astro";
 import RateLimitWall from "../components/RateLimitWall.astro";
 import VoiceResult from "../components/VoiceResult.astro";
-import { VOICE_SAMPLES } from "../fixtures/studio-north";
+import VoiceDocForm from "../components/VoiceDocForm.astro";
+import VoiceDocPicker from "../components/VoiceDocPicker.astro";
 
 const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
 ---
 <ToolLayout
   toolName="Brand Voice Checker"
-  description="Paste a brand voice doc and a draft. Get flagged phrases with the cited rule, a voice-fit score, and an on-brand rewrite. Part of the Agency Vibe-Coding Kit."
+  description="Build a structured voice doc per client, save it, and check drafts against it. Every flag comes with the cited rule, scored across vocabulary, punctuation, tone, and cadence. Part of the Agency Vibe-Coding Kit."
   repoUrl={REPO_URL}
 >
   <h1 class="tool-title">
     Catch off-brand copy before it goes to the <em>client</em>.
   </h1>
   <p class="tool-lede">
-    Paste the brand voice doc, paste the draft. Every flag comes with the
-    exact rule it violates, quoted from the doc — so you know the tool actually
-    read it.
+    Build a structured voice doc for each client. The tool scores drafts
+    deterministically on vocabulary and punctuation, and pairwise-judges tone
+    and cadence against your voice-on / voice-off examples. Every flag cites
+    the specific rule it violates.
   </p>
 
   <section class="card">
-    {VOICE_SAMPLES.length > 0 && (
-      <div class="samples">
-        <span class="samples__label">Try a sample:</span>
-        {VOICE_SAMPLES.map((s) => (
-          <button class="btn btn--ghost btn--small" data-sample={s.id}>
-            {s.client}
-          </button>
-        ))}
-      </div>
-    )}
+    <VoiceDocPicker />
+    <details class="samples-details" open>
+      <summary class="samples-details__summary">Try with a built-in sample →</summary>
+      <div class="samples" data-samples-row></div>
+    </details>
+    <VoiceDocForm />
+  </section>
 
-    <div class="two-col">
-      <div>
-        <label class="field-label" for="voiceDoc">
-          Brand voice doc
-          <span class="field-hint">
-            Don't have one? <a href="/brand-voice-template.md" download>Download a starter template</a>
-          </span>
-        </label>
-        <textarea
-          class="input"
-          id="voiceDoc"
-          name="voiceDoc"
-          placeholder="Paste the brand voice doc — tone words, banned words, punctuation rules, examples..."
-          rows="9"
-        ></textarea>
-      </div>
-      <div>
-        <label class="field-label" for="draft">
-          Draft to check
-          <span class="field-hint">Caption, email, post, anything client-facing</span>
-        </label>
-        <textarea
-          class="input"
-          id="draft"
-          name="draft"
-          placeholder="Paste the draft copy you want to check..."
-          rows="9"
-        ></textarea>
-      </div>
+  <section class="card card--draft">
+    <div class="draft-block">
+      <label class="field-label" for="draft">
+        Draft to check
+        <span class="field-hint">Caption, email, post, anything client-facing</span>
+      </label>
+      <textarea
+        class="input"
+        id="draft"
+        name="draft"
+        placeholder="Paste the draft copy you want to check..."
+        rows="7"
+      ></textarea>
     </div>
-
     <div class="actions">
       <button class="btn btn--primary" id="submit">Check voice fit &rarr;</button>
       <LoadingStages stages={["Reading", "Scoring", "Done"]} />
@@ -76,64 +58,232 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
 </ToolLayout>
 
 <style>
-  .two-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.25rem;
-    margin-bottom: 0.75rem;
+  .card--draft { margin-top: 1.25rem; }
+  .draft-block { margin-bottom: 0.85rem; }
+
+  .samples-details {
+    margin-bottom: 1.25rem;
   }
-  @media (max-width: 760px) {
-    .two-col { grid-template-columns: 1fr; }
+  .samples-details__summary {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--surface-700);
+    cursor: pointer;
+    padding: 0.4rem 0;
+    list-style: none;
+  }
+  .samples-details__summary::-webkit-details-marker { display: none; }
+  .samples-details[open] .samples-details__summary { margin-bottom: 0.5rem; }
+  .samples {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    padding: 0.4rem 0;
   }
 </style>
 
 <script>
-  import { VOICE_SAMPLES } from "../fixtures/studio-north";
+  import { VOICE_SAMPLES, SAMPLE_DOCS } from "../fixtures/studio-north";
+  import {
+    seedSamplesIfNeeded,
+    listDocs,
+    getDoc,
+    saveDoc,
+    deleteDoc,
+    duplicateDoc,
+    SAMPLE_ID_PREFIX,
+  } from "../lib/voice-doc-storage";
+  import {
+    emptyVoiceDoc,
+    type VoiceDoc,
+  } from "../lib/voice-doc-schema";
+  import { computeDocStrength } from "../lib/voice-doc-strength";
+  import { mountForm, type FormHandle } from "../lib/voice-doc-form";
   import type { VoiceResult } from "../lib/voice-types";
   import type { ApiResponse } from "../lib/types";
 
   const $ = (sel: string) => document.querySelector(sel) as HTMLElement | null;
-  const voiceDoc = $("#voiceDoc") as HTMLTextAreaElement;
-  const draft = $("#draft") as HTMLTextAreaElement;
-  const submit = $("#submit") as HTMLButtonElement;
+  const draftInput = $("#draft") as HTMLTextAreaElement;
+  const submitBtn = $("#submit") as HTMLButtonElement;
   const hint = $("#hint");
   const loading = document.querySelector(".loading") as HTMLElement | null;
   const result = document.querySelector(".result") as HTMLElement | null;
   const wall = document.querySelector(".wall") as HTMLElement | null;
 
-  document.querySelectorAll<HTMLButtonElement>("[data-sample]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const id = btn.dataset.sample;
-      const sample = VOICE_SAMPLES.find((s) => s.id === id);
-      if (sample) {
-        voiceDoc.value = sample.voiceDoc;
-        draft.value = sample.draft;
-      }
-    });
+  const formRoot = document.querySelector(".voice-form") as HTMLElement;
+  const pickerSelect = document.querySelector("[data-picker-select]") as HTMLSelectElement;
+  const pickerStatus = document.querySelector("[data-picker-status]") as HTMLElement;
+  const pickerNew = document.querySelector("[data-picker-new]") as HTMLButtonElement;
+  const pickerDup = document.querySelector("[data-picker-duplicate]") as HTMLButtonElement;
+  const pickerDel = document.querySelector("[data-picker-delete]") as HTMLButtonElement;
+  const pickerSave = document.querySelector("[data-picker-save]") as HTMLButtonElement;
+  const samplesRow = document.querySelector("[data-samples-row]") as HTMLElement;
+  const strengthBox = formRoot.querySelector('[data-field="strength_meter"]') as HTMLElement;
+  const strengthScore = formRoot.querySelector('[data-field="strength_score"]') as HTMLElement;
+  const strengthSummary = formRoot.querySelector('[data-field="strength_summary"]') as HTMLElement;
+
+  let form: FormHandle = mountForm(formRoot);
+  let currentDoc: VoiceDoc = emptyVoiceDoc();
+
+  // Seed samples on first visit so the dropdown is non-empty out of the box.
+  seedSamplesIfNeeded(SAMPLE_DOCS);
+  refreshPicker();
+  selectInitialDoc();
+  updateStrength();
+
+  form.onChange((doc) => {
+    currentDoc = doc;
+    updateStrength();
   });
 
-  document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const data = (window as any).__lastResult as VoiceResult | undefined;
-      if (!data) return;
-      const text =
-        btn.dataset.copy === "rewrite" ? data.rewritten_draft : formatFlags(data);
-      navigator.clipboard.writeText(text);
-      const orig = btn.textContent;
-      btn.textContent = "Copied!";
-      setTimeout(() => (btn.textContent = orig), 1400);
-    });
+  function refreshPicker(): void {
+    const docs = listDocs();
+    pickerSelect.innerHTML = "";
+    if (docs.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "(no saved docs yet)";
+      pickerSelect.appendChild(opt);
+    }
+    for (const d of docs) {
+      const opt = document.createElement("option");
+      opt.value = d.id;
+      const isSample = d.id.startsWith(SAMPLE_ID_PREFIX);
+      opt.textContent = isSample ? `${d.client_name} — sample` : d.client_name;
+      pickerSelect.appendChild(opt);
+    }
+  }
+
+  function selectInitialDoc(): void {
+    const docs = listDocs();
+    if (docs.length === 0) {
+      currentDoc = emptyVoiceDoc();
+      form.setDoc(currentDoc);
+      return;
+    }
+    const first = docs[0];
+    pickerSelect.value = first.id;
+    currentDoc = first;
+    form.setDoc(first);
+  }
+
+  pickerSelect.addEventListener("change", () => {
+    const doc = getDoc(pickerSelect.value);
+    if (doc) {
+      currentDoc = doc;
+      form.setDoc(doc);
+      updateStrength();
+      setStatus("");
+    }
   });
 
-  submit.addEventListener("click", async () => {
-    const v = voiceDoc.value.trim();
-    const d = draft.value.trim();
-    if (!v || !d) {
-      (v ? draft : voiceDoc).focus();
+  pickerNew.addEventListener("click", () => {
+    const blank = emptyVoiceDoc();
+    currentDoc = blank;
+    form.setDoc(blank);
+    pickerSelect.value = "";
+    updateStrength();
+    setStatus("New blank doc — give it a client name and save.", "warn");
+  });
+
+  pickerDup.addEventListener("click", () => {
+    const id = pickerSelect.value;
+    if (!id) {
+      setStatus("Select a doc to duplicate.", "warn");
+      return;
+    }
+    const copy = duplicateDoc(id);
+    if (copy) {
+      refreshPicker();
+      pickerSelect.value = copy.id;
+      currentDoc = copy;
+      form.setDoc(copy);
+      updateStrength();
+      setStatus(`Duplicated as "${copy.client_name}".`, "saved");
+    }
+  });
+
+  pickerDel.addEventListener("click", () => {
+    const id = pickerSelect.value;
+    if (!id) {
+      setStatus("Select a doc to delete.", "warn");
+      return;
+    }
+    if (id.startsWith(SAMPLE_ID_PREFIX)) {
+      setStatus("Sample docs can't be deleted (they re-seed on next visit). Duplicate it first if you want to modify.", "warn");
+      return;
+    }
+    const doc = getDoc(id);
+    if (!doc) return;
+    if (!confirm(`Delete "${doc.client_name}"? This can't be undone.`)) return;
+    deleteDoc(id);
+    refreshPicker();
+    selectInitialDoc();
+    updateStrength();
+    setStatus("Deleted.", "saved");
+  });
+
+  pickerSave.addEventListener("click", () => {
+    const doc = form.readDoc();
+    if (!doc.client_name.trim()) {
+      setStatus("Add a client name before saving.", "warn");
+      return;
+    }
+    const saved = saveDoc(doc);
+    currentDoc = saved;
+    refreshPicker();
+    pickerSelect.value = saved.id;
+    setStatus(`Saved "${saved.client_name}".`, "saved");
+  });
+
+  // Sample buttons: load the sample doc into the form AND populate the draft
+  // textarea with the matching off-brand draft so the demo flow works.
+  for (const s of VOICE_SAMPLES) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn--ghost btn--small";
+    btn.textContent = s.client;
+    btn.addEventListener("click", () => {
+      currentDoc = s.voiceDoc;
+      form.setDoc(s.voiceDoc);
+      pickerSelect.value = s.voiceDoc.id;
+      draftInput.value = s.draft;
+      updateStrength();
+      setStatus(`Loaded sample "${s.client}".`, "saved");
+    });
+    samplesRow.appendChild(btn);
+  }
+
+  function setStatus(message: string, state?: "saved" | "warn"): void {
+    pickerStatus.textContent = message;
+    if (state) pickerStatus.dataset.state = state;
+    else delete pickerStatus.dataset.state;
+  }
+
+  function updateStrength(): void {
+    const strength = computeDocStrength(currentDoc);
+    strengthScore.textContent = String(strength.score);
+    strengthSummary.textContent = strength.summary;
+    strengthBox.dataset.band =
+      strength.score >= 9 ? "strong" :
+      strength.score >= 7 ? "solid" :
+      strength.score >= 5 ? "workable" : "weak";
+  }
+
+  // Submit — read structured doc + draft, POST to /api/check.
+  submitBtn.addEventListener("click", async () => {
+    const doc = form.readDoc();
+    const draft = draftInput.value.trim();
+    if (!draft) {
+      draftInput.focus();
+      return;
+    }
+    if (!doc.client_name.trim() || doc.banned_words.length + doc.voice_on_examples.length === 0) {
+      setStatus("Voice doc is too thin to score reliably. Add at least banned words and voice-on examples.", "warn");
       return;
     }
 
-    submit.disabled = true;
+    submitBtn.disabled = true;
     if (hint) hint.textContent = "";
     if (result) result.hidden = true;
     if (wall) wall.hidden = true;
@@ -149,7 +299,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       const res = await fetch("/api/check", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ voiceDoc: v, draft: d }),
+        body: JSON.stringify({ voiceDoc: doc, draft }),
       });
       const payload = (await res.json()) as ApiResponse<VoiceResult>;
       window.clearTimeout(t1);
@@ -166,7 +316,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
 
       if (loading) loading.dataset.stage = "done";
       (window as any).__lastResult = payload.data;
-      render(payload.data, d);
+      render(payload.data, draft);
       if (hint && Number.isFinite(payload.remaining)) {
         hint.textContent =
           payload.remaining > 0
@@ -176,11 +326,25 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     } catch {
       if (hint) hint.textContent = "Network error. Try again.";
     } finally {
-      submit.disabled = false;
+      submitBtn.disabled = false;
       window.setTimeout(() => {
         if (loading) loading.hidden = true;
       }, 600);
     }
+  });
+
+  // Copy actions — unchanged behavior.
+  document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const data = (window as any).__lastResult as VoiceResult | undefined;
+      if (!data) return;
+      const text =
+        btn.dataset.copy === "rewrite" ? data.rewritten_draft : formatFlags(data);
+      navigator.clipboard.writeText(text);
+      const orig = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(() => (btn.textContent = orig), 1400);
+    });
   });
 
   function render(data: VoiceResult, originalDraft: string) {
@@ -232,7 +396,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
         label.className = "flag__rewrite-label";
         label.textContent = "Try:";
         rewrite.appendChild(label);
-        rewrite.appendChild(document.createTextNode(f.suggested_rewrite));
+        rewrite.appendChild(document.createTextNode(" " + f.suggested_rewrite));
         li.appendChild(phrase);
         li.appendChild(rule);
         li.appendChild(rewrite);
@@ -271,8 +435,6 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
 
   function highlight(text: string, phrases: string[]): string {
     if (phrases.length === 0) return escapeHtml(text);
-    // Sort longest-first so a longer phrase doesn't get fragmented by a
-    // shorter one that's its substring.
     const sorted = [...new Set(phrases)].sort((a, b) => b.length - a.length);
     let out = "";
     let cursor = 0;

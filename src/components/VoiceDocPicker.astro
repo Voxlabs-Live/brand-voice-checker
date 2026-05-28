@@ -1,0 +1,52 @@
+---
+// VoiceDocPicker — dropdown of saved voice docs + actions (new / duplicate /
+// delete / save). HTML scaffold only; index.astro mounts behavior.
+---
+<div class="picker">
+  <label class="field-label picker__label">
+    Client voice doc
+    <select class="input input--small picker__select" data-picker-select>
+      <option value="">(select a saved doc)</option>
+    </select>
+  </label>
+  <div class="picker__actions">
+    <button type="button" class="btn btn--ghost btn--small" data-picker-new>+ New client</button>
+    <button type="button" class="btn btn--ghost btn--small" data-picker-duplicate>Duplicate</button>
+    <button type="button" class="btn btn--ghost btn--small" data-picker-delete>Delete</button>
+    <button type="button" class="btn btn--primary btn--small" data-picker-save>Save changes</button>
+  </div>
+  <p class="picker__status" data-picker-status></p>
+</div>
+
+<style>
+  .picker {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) auto;
+    gap: 0.75rem 1rem;
+    align-items: end;
+    margin-bottom: 0.85rem;
+  }
+  @media (max-width: 720px) {
+    .picker { grid-template-columns: 1fr; align-items: stretch; }
+  }
+  .picker__label { display: flex; flex-direction: column; gap: 0.3rem; }
+  .picker__select { font-family: var(--font-mono); }
+  .picker__actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  @media (max-width: 540px) {
+    .picker__actions { justify-content: flex-start; }
+  }
+  .picker__status {
+    grid-column: 1 / -1;
+    font-size: var(--text-sm);
+    color: var(--surface-600);
+    min-height: 1.25rem;
+    margin: 0;
+  }
+  .picker__status[data-state="saved"] { color: var(--surface-800); }
+  .picker__status[data-state="warn"] { color: var(--amber-700); }
+</style>

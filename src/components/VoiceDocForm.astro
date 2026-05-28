@@ -1,0 +1,310 @@
+---
+// VoiceDocForm — the 10-section structured voice-doc editor. HTML scaffold
+// only; voice-doc-form.ts mounts the interactive behavior.
+//
+// Each repeating section is a `<div data-list="...">` that the mount script
+// fills with rows. Single-value fields are tagged `data-field="..."`.
+---
+<form class="voice-form" data-voice-form novalidate>
+  <header class="voice-form__head">
+    <div class="voice-form__title">
+      <label class="field-label" for="bvc-client-name">
+        Client
+        <input id="bvc-client-name" class="input" data-field="client_name" placeholder="e.g. Aurelia Lashes" autocomplete="off">
+      </label>
+      <label class="field-label" for="bvc-vertical">
+        Vertical
+        <input id="bvc-vertical" class="input input--small" data-field="vertical" placeholder="e.g. Beauty" autocomplete="off">
+      </label>
+    </div>
+    <div class="voice-form__strength" data-field="strength_meter">
+      <span class="strength__score" data-field="strength_score">—</span>
+      <span class="strength__label">/10 doc strength</span>
+      <span class="strength__summary" data-field="strength_summary"></span>
+    </div>
+  </header>
+
+  <!-- §1 Tone words -->
+  <section class="voice-form__section">
+    <h4 class="voice-form__h">§1 — Three tone words</h4>
+    <p class="voice-form__hint">Three words that pull against each other. Example: <em>warm · precise · sensory</em>.</p>
+    <div class="form-row form-row--tone">
+      <input class="input input--small" data-field="tone_0" placeholder="tone 1" autocomplete="off">
+      <input class="input input--small" data-field="tone_1" placeholder="tone 2" autocomplete="off">
+      <input class="input input--small" data-field="tone_2" placeholder="tone 3" autocomplete="off">
+    </div>
+  </section>
+
+  <!-- §2 Banned words -->
+  <section class="voice-form__section">
+    <h4 class="voice-form__h">§2 — Banned words and phrases</h4>
+    <p class="voice-form__hint">Specific words/phrases the voice never uses. Used by the deterministic vocabulary check. <strong>Aim for 3+.</strong></p>
+    <div data-list="banned_words" class="form-list"></div>
+    <button type="button" class="btn btn--ghost btn--small" data-add-row="banned_words">+ Add banned word</button>
+  </section>
+
+  <!-- §3 Cadence rules -->
+  <section class="voice-form__section">
+    <h4 class="voice-form__h">§3 — Required cadence rules</h4>
+    <p class="voice-form__hint">Sentence-level rhythm. Sentence length, stance, lecture-vs-converse, sensory-over-claims.</p>
+    <div data-list="cadence_rules" class="form-list"></div>
+    <button type="button" class="btn btn--ghost btn--small" data-add-row="cadence_rules">+ Add cadence rule</button>
+  </section>
+
+  <!-- §4 Voice-on examples -->
+  <section class="voice-form__section">
+    <h4 class="voice-form__h">§4 — Voice-on examples</h4>
+    <p class="voice-form__hint">Short paragraphs (1–3 sentences) that sound exactly right. Pairwise tone scoring uses these as the positive anchor. <strong>Aim for 3+.</strong></p>
+    <div data-list="voice_on_examples" class="form-list"></div>
+    <button type="button" class="btn btn--ghost btn--small" data-add-row="voice_on_examples">+ Add voice-on example</button>
+  </section>
+
+  <!-- §5 Voice-off examples -->
+  <section class="voice-form__section">
+    <h4 class="voice-form__h">§5 — Voice-off examples</h4>
+    <p class="voice-form__hint">Short paragraphs that read off-brand, each with one line on why. The negative anchor for pairwise scoring. <strong>Aim for 2+.</strong></p>
+    <div data-list="voice_off_examples" class="form-list"></div>
+    <button type="button" class="btn btn--ghost btn--small" data-add-row="voice_off_examples">+ Add voice-off example</button>
+  </section>
+
+  <!-- §6 Punctuation -->
+  <section class="voice-form__section">
+    <h4 class="voice-form__h">§6 — Punctuation rules</h4>
+    <div class="form-grid form-grid--two">
+      <div class="form-field">
+        <span class="field-label">Exclamation marks</span>
+        <div class="radio-group">
+          <label><input type="radio" name="exclamation" value="never"> Never</label>
+          <label><input type="radio" name="exclamation" value="at_most_one"> At most one per post</label>
+          <label><input type="radio" name="exclamation" value="freely"> Used freely</label>
+        </div>
+      </div>
+      <div class="form-field">
+        <span class="field-label">Emojis</span>
+        <div class="radio-group">
+          <label><input type="radio" name="emoji" value="never"> Never</label>
+          <label><input type="radio" name="emoji" value="sparingly"> Sparingly</label>
+          <label><input type="radio" name="emoji" value="freely"> Used freely</label>
+        </div>
+      </div>
+      <label class="field-label">
+        Em-dashes (descriptive)
+        <input class="input input--small" data-field="em_dash" placeholder='e.g. "yes, sparingly, for a beat"' autocomplete="off">
+      </label>
+      <label class="field-label">
+        Ellipses (descriptive)
+        <input class="input input--small" data-field="ellipsis" placeholder='e.g. "rarely"' autocomplete="off">
+      </label>
+    </div>
+  </section>
+
+  <!-- §7 CTA rules -->
+  <section class="voice-form__section">
+    <h4 class="voice-form__h">§7 — CTA voice rules</h4>
+    <div class="form-grid form-grid--two">
+      <div>
+        <span class="field-label">Preferred CTA phrases</span>
+        <div data-list="cta_preferred" class="form-list"></div>
+        <button type="button" class="btn btn--ghost btn--small" data-add-row="cta_preferred">+ Add preferred CTA</button>
+      </div>
+      <div>
+        <span class="field-label">Banned CTA phrases</span>
+        <div data-list="cta_banned" class="form-list"></div>
+        <button type="button" class="btn btn--ghost btn--small" data-add-row="cta_banned">+ Add banned CTA</button>
+      </div>
+    </div>
+    <label class="field-label" style="margin-top:0.75rem;">
+      Tone of the ask
+      <input class="input input--small" data-field="cta_tone" placeholder='e.g. "measured, direct, no urgency theater"' autocomplete="off">
+    </label>
+  </section>
+
+  <!-- §8 Required terms -->
+  <section class="voice-form__section">
+    <h4 class="voice-form__h">§8 — Industry-specific terminology</h4>
+    <p class="voice-form__hint">Required-term swaps. The deterministic check flags the wrong term and suggests the right one.</p>
+    <div data-list="required_terms" class="form-list"></div>
+    <button type="button" class="btn btn--ghost btn--small" data-add-row="required_terms">+ Add term swap</button>
+  </section>
+
+  <!-- §9 Exceptions -->
+  <section class="voice-form__section">
+    <h4 class="voice-form__h">§9 — Client-specific exceptions</h4>
+    <p class="voice-form__hint">When the brand breaks its own rules and why. Optional — most brands don't.</p>
+    <div data-list="exceptions" class="form-list"></div>
+    <button type="button" class="btn btn--ghost btn--small" data-add-row="exceptions">+ Add exception</button>
+  </section>
+
+  <!-- §10 Examples gallery -->
+  <section class="voice-form__section">
+    <h4 class="voice-form__h">§10 — Examples gallery</h4>
+    <p class="voice-form__hint">5–10 real captions, emails, or posts that nailed the voice. Pairwise scoring leans on these. <strong>Aim for 5+.</strong></p>
+    <div data-list="examples_gallery" class="form-list"></div>
+    <button type="button" class="btn btn--ghost btn--small" data-add-row="examples_gallery">+ Add gallery example</button>
+  </section>
+</form>
+
+<style>
+  .voice-form {
+    background: var(--surface-0);
+    border: 1px solid var(--surface-200);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-card);
+  }
+
+  .voice-form__head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1.5rem;
+    align-items: flex-end;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--surface-200);
+  }
+  @media (max-width: 720px) {
+    .voice-form__head { grid-template-columns: 1fr; gap: 0.75rem; }
+  }
+
+  .voice-form__title {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 0.75rem;
+  }
+  @media (max-width: 540px) {
+    .voice-form__title { grid-template-columns: 1fr; }
+  }
+
+  .voice-form__strength {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    padding: 0.6rem 0.85rem;
+    background: var(--surface-50);
+    border: 1px solid var(--surface-200);
+    border-radius: var(--radius);
+  }
+  .strength__score {
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+    color: var(--surface-900);
+  }
+  .voice-form__strength[data-band="weak"] .strength__score { color: var(--accent-500); }
+  .voice-form__strength[data-band="workable"] .strength__score { color: var(--amber-700); }
+  .voice-form__strength[data-band="solid"] .strength__score { color: var(--surface-800); }
+  .voice-form__strength[data-band="strong"] .strength__score { color: var(--surface-900); }
+  .strength__label {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--surface-600);
+  }
+  .strength__summary {
+    flex-basis: 100%;
+    font-size: var(--text-sm);
+    color: var(--surface-700);
+    margin-top: 0.3rem;
+  }
+
+  .voice-form__section {
+    margin-bottom: 1.5rem;
+  }
+  .voice-form__section:last-child { margin-bottom: 0; }
+  .voice-form__h {
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-semibold);
+    margin: 0 0 0.3rem;
+    color: var(--surface-900);
+  }
+  .voice-form__hint {
+    font-size: var(--text-sm);
+    color: var(--surface-600);
+    margin: 0 0 0.65rem;
+    line-height: var(--leading-normal);
+  }
+
+  .form-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 0.4rem;
+    align-items: start;
+  }
+  .form-row--tone {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  .form-row--stacked {
+    grid-template-columns: 1fr auto;
+  }
+  .form-row__main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  /* Banned words: 1fr 1fr auto. Required terms: 1fr 1fr 1fr auto. */
+  [data-list="required_terms"] .form-row { grid-template-columns: 1fr 1fr 1fr auto; }
+  /* Single-text rows */
+  [data-list="cadence_rules"] .form-row,
+  [data-list="voice_on_examples"] .form-row,
+  [data-list="examples_gallery"] .form-row,
+  [data-list="cta_preferred"] .form-row,
+  [data-list="cta_banned"] .form-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .input--small {
+    padding: 0.4rem 0.6rem;
+    font-size: var(--text-sm);
+  }
+  textarea.input--small {
+    resize: vertical;
+  }
+
+  .btn--icon {
+    width: 1.85rem;
+    height: 1.85rem;
+    padding: 0;
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--surface-600);
+  }
+  .btn--icon:hover { color: var(--accent-500); }
+
+  .form-grid {
+    display: grid;
+    gap: 1rem;
+  }
+  .form-grid--two {
+    grid-template-columns: 1fr 1fr;
+  }
+  @media (max-width: 640px) {
+    .form-grid--two { grid-template-columns: 1fr; }
+  }
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: var(--text-sm);
+  }
+  .radio-group label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+  }
+</style>

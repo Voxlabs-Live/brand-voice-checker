@@ -3,10 +3,13 @@ import { callCached, parseJson } from "../../lib/anthropic";
 import { readDemo, consumeDemo } from "../../lib/rate-limit";
 import { VOICE_SYSTEM_PROMPT } from "../../prompts/system";
 import {
-  parseVoiceDoc,
   runDeterministicChecks,
   computeDeterministicSubScores,
 } from "../../lib/deterministic-checks";
+import {
+  renderDocToMarkdown,
+  type VoiceDoc,
+} from "../../lib/voice-doc-schema";
 import {
   type VoiceResult,
   type LlmVoiceJudgment,
@@ -34,10 +37,10 @@ function bandDistance(a: VoiceBand, b: VoiceBand): number {
 }
 
 async function callLlmOnce(
-  voiceDoc: string,
+  voiceDocMarkdown: string,
   draft: string
 ): Promise<LlmVoiceJudgment> {
-  const userInput = `BRAND VOICE DOC:\n\n${voiceDoc}\n\n---\n\nDRAFT TO CHECK:\n\n${draft}`;
+  const userInput = `BRAND VOICE DOC:\n\n${voiceDocMarkdown}\n\n---\n\nDRAFT TO CHECK:\n\n${draft}`;
   const { text } = await callCached({
     systemPrompt: VOICE_SYSTEM_PROMPT,
     userInput,
@@ -59,15 +62,10 @@ function clamp1to5(n: unknown): number {
   return Math.max(1, Math.min(5, Math.round(n)));
 }
 
-/** Average a list of numbers, rounded to int. */
 function avg(xs: number[]): number {
   return Math.round(xs.reduce((a, b) => a + b, 0) / xs.length);
 }
 
-/**
- * Dedupe LLM flags by phrase (case-insensitive). When two runs flag the same
- * phrase, keep the citation from the first run.
- */
 function dedupeLlmFlags(flags: VoiceFlag[]): VoiceFlag[] {
   const out: VoiceFlag[] = [];
   const seen = new Set<string>();
@@ -80,19 +78,12 @@ function dedupeLlmFlags(flags: VoiceFlag[]): VoiceFlag[] {
   return out;
 }
 
-/**
- * Compose a single-sentence score reason from the LLM reasons + flag counts.
- * The deterministic flags get summarized by count; the LLM reasons get
- * surfaced as the qualitative reading.
- */
 function composeReason(
   llmRuns: LlmVoiceJudgment[],
   deterministicFlagCount: number,
   band: VoiceBand
 ): string {
-  const llmReasonsTone = llmRuns
-    .map((r) => r.tone_reason)
-    .filter(Boolean);
+  const llmReasonsTone = llmRuns.map((r) => r.tone_reason).filter(Boolean);
   const llmReasonsCadence = llmRuns
     .map((r) => r.cadence_reason)
     .filter(Boolean);
@@ -111,6 +102,36 @@ function composeReason(
   return parts.join(" · ");
 }
 
+/** Basic shape validation on the incoming VoiceDoc. */
+function validateVoiceDoc(input: unknown): VoiceDoc | string {
+  if (!input || typeof input !== "object") {
+    return "voiceDoc must be a structured object (see /brand-voice-template.md).";
+  }
+  const doc = input as Partial<VoiceDoc>;
+  if (!doc.client_name || typeof doc.client_name !== "string") {
+    return "voiceDoc.client_name is required.";
+  }
+  if (!Array.isArray(doc.banned_words)) {
+    return "voiceDoc.banned_words must be an array.";
+  }
+  if (!Array.isArray(doc.voice_on_examples)) {
+    return "voiceDoc.voice_on_examples must be an array.";
+  }
+  if (!Array.isArray(doc.voice_off_examples)) {
+    return "voiceDoc.voice_off_examples must be an array.";
+  }
+  if (!Array.isArray(doc.required_terms)) {
+    return "voiceDoc.required_terms must be an array.";
+  }
+  if (!Array.isArray(doc.examples_gallery)) {
+    return "voiceDoc.examples_gallery must be an array.";
+  }
+  if (!doc.punctuation || typeof doc.punctuation !== "object") {
+    return "voiceDoc.punctuation is required.";
+  }
+  return doc as VoiceDoc;
+}
+
 export const POST: APIRoute = async ({ request }) => {
   // Step 1 — rate limit
   const usage = await readDemo(request);
@@ -122,49 +143,65 @@ export const POST: APIRoute = async ({ request }) => {
     });
   }
 
-  // Step 2 — validate input
-  let body: { voiceDoc?: string; draft?: string };
+  // Step 2 — validate input. Body shape: { voiceDoc: VoiceDoc, draft: string }
+  let body: { voiceDoc?: unknown; draft?: unknown };
   try {
     body = await request.json();
   } catch {
     return json<VoiceResult>({
       ok: false,
       error: "invalid_input",
-      message: "Body must be JSON with `voiceDoc` and `draft` fields.",
+      message: "Body must be JSON with `voiceDoc` (object) and `draft` (string).",
     });
   }
-  const voiceDoc = (body.voiceDoc ?? "").trim();
-  const draft = (body.draft ?? "").trim();
-  if (!voiceDoc || !draft) {
+  const validated = validateVoiceDoc(body.voiceDoc);
+  if (typeof validated === "string") {
     return json<VoiceResult>({
       ok: false,
       error: "invalid_input",
-      message: "Paste both the voice doc and a draft.",
+      message: validated,
     });
   }
-  if (voiceDoc.length > 12000 || draft.length > 6000) {
+  const voiceDoc = validated;
+  const draft = typeof body.draft === "string" ? body.draft.trim() : "";
+  if (!draft) {
     return json<VoiceResult>({
       ok: false,
       error: "invalid_input",
-      message: "Inputs too long. Voice doc ≤12k chars, draft ≤6k chars.",
+      message: "Paste a draft to check.",
+    });
+  }
+  if (draft.length > 6000) {
+    return json<VoiceResult>({
+      ok: false,
+      error: "invalid_input",
+      message: "Draft too long. Maximum 6000 characters.",
     });
   }
 
-  // Step 3 — deterministic pre-pass (free, instant, 100% recall on rules).
-  const parsedDoc = parseVoiceDoc(voiceDoc);
-  const deterministicFlags = runDeterministicChecks(draft, parsedDoc);
+  // Step 3 — deterministic pre-pass against the typed doc.
+  const deterministicFlags = runDeterministicChecks(draft, voiceDoc);
   const detSubScores = computeDeterministicSubScores(
-    draft,
-    parsedDoc,
+    voiceDoc,
     deterministicFlags
   );
 
-  // Step 4 — N=2 LLM calls in parallel for tone + cadence + rewrite.
+  // Step 4 — render markdown for the LLM (keeps the existing system prompt
+  // and its calibration examples unchanged), then N=2 calls in parallel.
+  const voiceDocMarkdown = renderDocToMarkdown(voiceDoc);
+  if (voiceDocMarkdown.length > 12000) {
+    return json<VoiceResult>({
+      ok: false,
+      error: "invalid_input",
+      message: "Serialized voice doc exceeds 12000 chars. Trim some examples.",
+    });
+  }
+
   let llmRuns: LlmVoiceJudgment[];
   try {
     llmRuns = await Promise.all([
-      callLlmOnce(voiceDoc, draft),
-      callLlmOnce(voiceDoc, draft),
+      callLlmOnce(voiceDocMarkdown, draft),
+      callLlmOnce(voiceDocMarkdown, draft),
     ]);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -174,9 +211,7 @@ export const POST: APIRoute = async ({ request }) => {
     return json<VoiceResult>({ ok: false, error: code, message: msg });
   }
 
-  // Step 5 — band-level agreement check. If the two runs land in
-  // non-adjacent bands when composited with the deterministic sub-scores,
-  // fire a third tie-break call.
+  // Step 5 — tie-break if the two initial runs land in non-adjacent bands.
   const subScoresPerRun = llmRuns.map((run) => ({
     vocabulary: detSubScores.vocabulary,
     punctuation: detSubScores.punctuation,
@@ -190,14 +225,14 @@ export const POST: APIRoute = async ({ request }) => {
 
   if (initialDistance >= 2) {
     try {
-      const tieBreak = await callLlmOnce(voiceDoc, draft);
+      const tieBreak = await callLlmOnce(voiceDocMarkdown, draft);
       llmRuns.push(tieBreak);
     } catch {
       // Tie-break failed — proceed with the two we have. Confidence stays low.
     }
   }
 
-  // Step 6 — aggregate the final score across runs.
+  // Step 6 — aggregate the final score.
   const finalToneScore = avg(
     llmRuns.map((r) => pairwiseToScore(r.tone_score_1_5))
   );
@@ -213,25 +248,25 @@ export const POST: APIRoute = async ({ request }) => {
   const composite = compositeFrom(finalSubScores);
   const { band, label } = bandFor(composite);
 
-  // Confidence: based on the original N=2 band agreement.
   let confidence: "high" | "medium" | "low";
   if (initialDistance === 0) confidence = "high";
   else if (initialDistance === 1) confidence = "medium";
   else confidence = "low";
 
-  // Merge flags: deterministic + de-duped LLM flags. Drop any LLM flag whose
-  // phrase already appears in the deterministic set (case-insensitive) to
-  // avoid double-citation.
+  // Step 7 — merge flags (deterministic + de-duped LLM, with LLM flags whose
+  // phrase already appears in the deterministic set dropped to avoid
+  // double-citation).
   const detPhrases = new Set(
     deterministicFlags.map((f) => f.phrase.toLowerCase().trim())
   );
   const llmFlags = dedupeLlmFlags(
-    llmRuns.flatMap((r) => r.flags).filter((f) => !detPhrases.has(f.phrase.toLowerCase().trim()))
+    llmRuns
+      .flatMap((r) => r.flags)
+      .filter((f) => !detPhrases.has(f.phrase.toLowerCase().trim()))
   );
   const mergedFlags = [...deterministicFlags, ...llmFlags];
 
-  // Pick the rewrite from the run with tone+cadence scores closest to the
-  // averaged final score (so the rewrite reflects the consensus reading).
+  // Step 8 — pick the rewrite from the run closest to the averaged final score.
   const bestRunIdx = llmRuns
     .map((r, i) => ({
       i,
