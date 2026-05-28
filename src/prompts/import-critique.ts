@@ -25,9 +25,11 @@ You receive:
 
 Your job:
 
-1. FILL THE GAPS. For each section in the "missing_from_extraction" list, extract any content you can find in the raw text and emit it in the structured format. Do NOT overwrite sections that already have content from the regex extractor — those are authoritative.
+1. FILL THE GAPS — STRICTLY FROM THE TEXT. For each section in the "missing_from_extraction" list, extract content the regex parser couldn't reach. CRITICAL: extracted_fields must contain ONLY content that is LITERALLY present in the raw text — exact words, phrases, or examples the author wrote. Do NOT invent banned words, do not infer tone words from prose, do not extrapolate examples. If a section has zero content in the source, set its key to null. The user will accept extracted_fields as if they came from their own doc — inventing content would mislead them about what they wrote.
 
-2. SUGGEST IMPROVEMENTS. For each section the doc is light on (zero or few entries), generate a short suggestion message and 1-3 example items the user could add. Keep suggestions specific to THIS brand's apparent voice, not generic advice.
+   Do NOT overwrite sections that already have content from the regex extractor — those are authoritative.
+
+2. SUGGEST IMPROVEMENTS — INFERENCE BELONGS HERE. For each section the doc is light on (zero or few entries), generate a short suggestion message and 1-3 example items the user could add. This is where you extrapolate, infer, and propose. The user explicitly reviews suggestions before applying them, so inference is appropriate. Make suggestions specific to THIS brand's apparent voice, not generic advice.
 
 The structure follows the 10-section template:
 

@@ -337,13 +337,28 @@ function extractCta(text: string): {
 
 function extractRequiredTerms(text: string): RequiredTerm[] {
   const out: RequiredTerm[] = [];
-  // Pattern: Use "X", not "Y"  OR  Use X, not Y
-  const re = /use\s+["']?([A-Za-z][^"',.\n]+?)["']?\s*,?\s*not\s+["']?([A-Za-z][^"',.\n]+?)["']?(?:\s*\(([^)]+)\))?\s*[.\n]/gi;
+  // Match `Use "X", not "Y"` with double-quoted terms (the canonical template
+  // format). Quotes act as unambiguous delimiters so the term captures don't
+  // wander into adjacent text. Anything between the closing quote of "Y" and
+  // the next period (excluding leading space and surrounding parens) becomes
+  // the inline note. Examples it must catch:
+  //   - Use "patients", not "clients".
+  //   - Use "lashes", not "extensions" in feed copy.
+  //   - Use "lot", not "batch" when referring to single-origin coffees.
+  //   - Use "wear", not "rock" (wrong register).
+  // Non-quoted variants (e.g. `we use guest, not customer`) are left for the
+  // LLM fallback in the import endpoint — they're too ambiguous to parse
+  // safely with a regex.
+  const re = /use\s+"([^"]+)"\s*,?\s*not\s+"([^"]+)"\s*([^.\n]*?)\s*[.\n]/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
     const use = m[1].trim();
     const not = m[2].trim();
-    const note = m[3]?.trim();
+    let note: string | undefined = m[3]?.trim() || undefined;
+    if (note) {
+      const stripped = note.replace(/^\(\s*|\s*\)$/g, "").trim();
+      note = stripped || undefined;
+    }
     if (use && not) out.push({ use, not, note });
   }
   return out;
@@ -377,12 +392,23 @@ function findRuleValue(text: string, keys: string[]): string | undefined {
 
 function splitQuotedList(value: string): string[] {
   const out: string[] = [];
-  // Match either quoted strings or comma-separated tokens.
-  const quoted = value.match(/["']([^"']+)["']/g);
-  if (quoted) {
-    for (const q of quoted) out.push(q.replace(/["']/g, "").trim());
+  // Match double-quoted strings — these are the canonical container for CTA
+  // phrases in voice docs. Apostrophes are NOT used as quote delimiters
+  // because they appear inside content ("Don't miss out!") and would split
+  // those phrases mid-word.
+  const doubleQuoted = value.match(/"([^"]+)"/g);
+  if (doubleQuoted) {
+    for (const q of doubleQuoted) out.push(q.replace(/"/g, "").trim());
     return out;
   }
+  // Same for single-quote-only formatting, but only when no embedded
+  // apostrophes appear inside the captured tokens.
+  const singleQuoted = value.match(/'([^']+)'/g);
+  if (singleQuoted && singleQuoted.every((q) => !/\w'\w/.test(q.slice(1, -1)))) {
+    for (const q of singleQuoted) out.push(q.replace(/'/g, "").trim());
+    return out;
+  }
+  // Fall back to comma/semicolon-separated tokens.
   return value
     .split(/,|;/)
     .map((s) => s.trim().replace(/[."']$/, ""))
