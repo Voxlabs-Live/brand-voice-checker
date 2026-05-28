@@ -63,16 +63,31 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       <VoiceDocSummary />
     </div>
 
-    <!-- Editing state: full form + picker + upload + critique -->
+    <!-- Editing state: full form + picker + upload + critique.
+         When data-import-only="true", picker/samples/form are hidden so the
+         user can focus on the upload drop area. Removed automatically after
+         a successful import. -->
     <div class="stage__body stage__body--editing" data-mode-view="editing" hidden>
-      <VoiceDocPicker />
-      <details class="samples-details">
-        <summary class="samples-details__summary">Try with a built-in sample →</summary>
-        <div class="samples" data-samples-row-editing></div>
-      </details>
+      <p class="import-only-lead" data-import-lead hidden>
+        Drop your existing voice doc below. We'll extract the structured
+        fields and show you what's missing — you'll review everything before
+        anything saves.
+      </p>
+      <div data-editing-picker>
+        <VoiceDocPicker />
+        <details class="samples-details">
+          <summary class="samples-details__summary">Try with a built-in sample →</summary>
+          <div class="samples" data-samples-row-editing></div>
+        </details>
+      </div>
       <UploadDoc />
       <DocCritiquePanel />
-      <VoiceDocForm />
+      <div data-editing-form>
+        <VoiceDocForm />
+      </div>
+      <p class="import-only-escape" data-import-escape hidden>
+        Or <a href="#" data-import-switch-build>build from scratch instead →</a>
+      </p>
       <div class="stage__footer">
         <button type="button" class="btn btn--ghost" data-editing-cancel>Cancel</button>
         <button type="button" class="btn btn--primary" data-editing-done>Done editing →</button>
@@ -268,6 +283,43 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   .stage__body--editing .voice-form {
     box-shadow: none;
     border-color: var(--surface-150);
+  }
+
+  /* ─── Import-only sub-state ────────────────────────────────────────────
+     Triggered when user clicks "Import existing doc". Hides everything
+     except the upload drop area so the focus is on the file. The form
+     reveals once applyImport() completes. */
+  .stage__body--editing[data-import-only="true"] [data-editing-picker],
+  .stage__body--editing[data-import-only="true"] [data-editing-form],
+  .stage__body--editing[data-import-only="true"] [data-editing-done] {
+    display: none;
+  }
+  .import-only-lead {
+    margin: 0 0 0.85rem;
+    color: var(--surface-700);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+  }
+  .import-only-escape {
+    margin: 1rem 0 0;
+    font-size: var(--text-sm);
+    color: var(--surface-600);
+    text-align: center;
+  }
+  .import-only-escape a {
+    color: var(--accent-600);
+    font-weight: var(--font-weight-semibold);
+  }
+  .import-only-escape a:hover { color: var(--accent-700); }
+
+  /* In import-only mode, lift the upload area visually so the user knows
+     it's the primary action. */
+  .stage__body--editing[data-import-only="true"] .upload {
+    border-color: var(--surface-300);
+    background: var(--surface-0);
+  }
+  .stage__body--editing[data-import-only="true"] .upload__drop {
+    padding: 2.5rem 1.5rem;
   }
 
   /* Visually hide a label but keep it for screen readers. */
@@ -473,6 +525,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     form.setDoc(currentDoc);
     editingBaselineId = "";
     if (uploadDetails) uploadDetails.open = false;
+    exitImportOnlyMode();
     setMode("editing");
     setPickerStatus("New blank doc — fill in the form, then click Save changes.", "warn");
   });
@@ -480,11 +533,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     currentDoc = emptyVoiceDoc();
     form.setDoc(currentDoc);
     editingBaselineId = "";
-    if (uploadDetails) uploadDetails.open = true;
-    setMode("editing");
-    setPickerStatus("Drop your existing voice doc into the upload area.", "warn");
-    // Scroll the upload area into view inside the form.
-    uploadDetails?.scrollIntoView({ behavior: "smooth", block: "center" });
+    enterImportOnlyMode();
   });
   emptySampleBtn.addEventListener("click", () => {
     emptySamplesBox.hidden = false;
@@ -496,6 +545,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     editingBaselineId = currentDoc.id;
     pickerSelect.value = currentDoc.id;
     form.setDoc(currentDoc);
+    exitImportOnlyMode();
     setMode("editing");
     setPickerStatus("");
   });
@@ -513,6 +563,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     form.setDoc(currentDoc);
     editingBaselineId = "";
     if (uploadDetails) uploadDetails.open = false;
+    exitImportOnlyMode();
     setMode("editing");
     setPickerStatus("New blank doc — fill in the form, then click Save changes.", "warn");
   });
@@ -520,10 +571,42 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     currentDoc = emptyVoiceDoc();
     form.setDoc(currentDoc);
     editingBaselineId = "";
+    enterImportOnlyMode();
+  });
+
+  /** Switch to editing mode with everything except the upload drop area
+      hidden, so the user can focus on the file drop. Cleared after a
+      successful import or when the user clicks Cancel / build-from-scratch. */
+  function enterImportOnlyMode(): void {
     if (uploadDetails) uploadDetails.open = true;
     setMode("editing");
-    uploadDetails?.scrollIntoView({ behavior: "smooth", block: "center" });
-  });
+    editingView.dataset.importOnly = "true";
+    const lead = editingView.querySelector('[data-import-lead]') as HTMLElement;
+    const escape = editingView.querySelector('[data-import-escape]') as HTMLElement;
+    if (lead) lead.hidden = false;
+    if (escape) escape.hidden = false;
+    setPickerStatus("");
+    editingView.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function exitImportOnlyMode(): void {
+    delete editingView.dataset.importOnly;
+    const lead = editingView.querySelector('[data-import-lead]') as HTMLElement;
+    const escape = editingView.querySelector('[data-import-escape]') as HTMLElement;
+    if (lead) lead.hidden = true;
+    if (escape) escape.hidden = true;
+  }
+
+  // "Build from scratch instead" escape link inside the import-only view.
+  const importSwitchBuild = editingView.querySelector('[data-import-switch-build]') as HTMLAnchorElement | null;
+  if (importSwitchBuild) {
+    importSwitchBuild.addEventListener("click", (e) => {
+      e.preventDefault();
+      exitImportOnlyMode();
+      if (uploadDetails) uploadDetails.open = false;
+      setPickerStatus("New blank doc — fill in the form, then click Save changes.", "warn");
+    });
+  }
 
   // ─── Editing-mode picker + form interactions ─────────────────────────
   pickerSelect.addEventListener("change", () => {
@@ -600,12 +683,14 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     const saved = persistCurrent();
     if (!saved) return; // validation failed; stay in editing
     currentDoc = saved;
+    exitImportOnlyMode();
     populatePickerSelect();
     populateSummarySwitcher();
     summarySwitcher.value = saved.id;
     setMode("summary");
   });
   cancelEditingBtn.addEventListener("click", () => {
+    exitImportOnlyMode();
     if (editingBaselineId) {
       const baseline = getDoc(editingBaselineId);
       if (baseline) {
@@ -773,6 +858,9 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     pickerSelect.value = "";
     updateStrengthMeter();
     renderCritique(result);
+    // Reveal the full editing view (form, picker, samples) now that there's
+    // something to review — import-only mode is no longer appropriate.
+    exitImportOnlyMode();
     setPickerStatus(
       `Imported "${result.doc.client_name}" from ${result.filename}. Review and save.`,
       "saved"
