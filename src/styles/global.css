@@ -491,3 +491,74 @@ input.input:focus {
   font-size: 0.7em;
   margin-right: 0.15rem;
 }
+
+/* ─────────────────────────────────────────────────────────
+ * Flag cards (Result panel → Flags column).
+ *
+ * Lives in global.css (not VoiceResult.astro's scoped <style>) because the
+ * <li>, <p>, <span> nodes are created dynamically by render() in index.astro
+ * via document.createElement. Astro's auto-scoped data-attribute selectors
+ * don't apply to those — same gotcha as .form-row.
+ *
+ * Visual hierarchy:
+ *   - Phrase: loudest — mono, accent-800, slightly above body size, anchors the card
+ *   - Rule cited: quoted italic, surface-700, the "why"
+ *   - Try suggestion: clean body with a mono "TRY" label on a separate line
+ *     so longer rewrites don't crash into the label.
+ * ───────────────────────────────────────────────────────── */
+.flags {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.flags li {
+  background: var(--surface-50);
+  border: 1px solid var(--surface-200);
+  border-left: 3px solid var(--accent-500);
+  border-radius: var(--radius);
+  padding: 0.95rem 1.1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.flag__phrase {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--accent-800);
+  line-height: var(--leading-snug);
+  margin: 0;
+  word-break: break-word;
+}
+.flag__rule {
+  font-size: var(--text-sm);
+  color: var(--surface-700);
+  font-style: italic;
+  line-height: var(--leading-normal);
+  margin: 0;
+}
+.flag__rule::before {
+  content: "\201C";
+}
+.flag__rule::after {
+  content: "\201D";
+}
+.flag__rewrite {
+  font-size: var(--text-sm);
+  color: var(--surface-900);
+  line-height: var(--leading-normal);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.flag__rewrite-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  color: var(--surface-500);
+  letter-spacing: 0.06em;
+}
