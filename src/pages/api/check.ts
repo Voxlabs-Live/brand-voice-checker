@@ -296,10 +296,25 @@ export const POST: APIRoute = async ({ request }) => {
   const detPhrases = new Set(
     deterministicFlags.map((f) => f.phrase.toLowerCase().trim())
   );
+  // Terminology swaps are single terms ("clients") the LLM tends to re-flag
+  // inside a longer phrase ("to our clients"). Drop any LLM flag whose phrase
+  // contains a terminology term as a whole word — the deterministic flag and
+  // its rewrite already own that fix. (Banned words are intentionally NOT
+  // included: an LLM tone flag like "It's super effective" legitimately spans
+  // the banned word "super" while raising a distinct, separate issue.)
+  const termPatterns = deterministicFlags
+    .filter((f) => f.category === "terminology")
+    .map((f) => f.phrase.toLowerCase().trim())
+    .filter(Boolean)
+    .map((p) => new RegExp(`(?:^|\\W)${escapeRegExp(p)}(?:\\W|$)`));
+  const overlapsDeterministic = (phrase: string): boolean => {
+    const p = phrase.toLowerCase().trim();
+    if (!p) return true;
+    if (detPhrases.has(p)) return true;
+    return termPatterns.some((re) => re.test(p));
+  };
   const llmFlags = dedupeLlmFlags(
-    llmRuns
-      .flatMap((r) => r.flags)
-      .filter((f) => !detPhrases.has(f.phrase.toLowerCase().trim()))
+    llmRuns.flatMap((r) => r.flags).filter((f) => !overlapsDeterministic(f.phrase))
   );
   const mergedFlags = [...deterministicFlags, ...llmFlags];
 
