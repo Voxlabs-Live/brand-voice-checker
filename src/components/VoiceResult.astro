@@ -196,17 +196,22 @@
     border-radius: var(--radius);
     padding: 0.7rem 0.85rem 0.85rem;
   }
+  /* Label stacked above the score, left-aligned, in every card. The old
+     label-left / value-right (space-between) layout left no gap when a long
+     label (VOCABULARY, PUNCTUATION) nearly filled the card, so the number butt
+     right up against it. Stacking is uniform and never collides at any width. */
   .subscore__head {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
     margin-bottom: 0.5rem;
   }
   .subscore__label {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.03em;
     color: var(--surface-700);
   }
   .subscore__value {
