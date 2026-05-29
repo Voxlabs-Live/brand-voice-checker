@@ -4,6 +4,10 @@
 //
 // Each repeating section is a `<div data-list="...">` that the mount script
 // fills with rows. Single-value fields are tagged `data-field="..."`.
+//
+// Each section heading carries an info tooltip (`.vf-tip`) with a plain-English
+// explanation + an example. The tooltip markup is static here (not created by
+// the mount script), so the scoped styles below apply to it.
 ---
 <form class="voice-form" data-voice-form novalidate>
   <header class="voice-form__head">
@@ -26,7 +30,7 @@
 
   <!-- Tone words -->
   <section class="voice-form__section">
-    <h4 class="voice-form__h">Three tone words</h4>
+    <h4 class="voice-form__h">Three tone words<span class="vf-tip" tabindex="0" role="button" aria-label="About: three tone words"><span class="vf-tip__bubble" role="tooltip">Three adjectives that define how the brand sounds. Pick words that pull in slightly different directions, so they capture real personality instead of just "professional." Drafts are scored on how closely their tone lands to these. <em>Examples:</em> warm · precise · sensory — or calm · grounded · honest.</span></span></h4>
     <p class="voice-form__hint">Three words that pull against each other. Example: <em>warm · precise · sensory</em>.</p>
     <div class="form-row form-row--tone">
       <input class="input input--small" data-field="tone_0" placeholder="tone 1" autocomplete="off">
@@ -37,15 +41,20 @@
 
   <!-- Banned words -->
   <section class="voice-form__section">
-    <h4 class="voice-form__h">Banned words and phrases</h4>
+    <h4 class="voice-form__h">Banned words and phrases<span class="vf-tip" tabindex="0" role="button" aria-label="About: banned words and phrases"><span class="vf-tip__bubble" role="tooltip">Specific words or phrases this brand never uses — hype, clichés, filler. The checker scans every draft for them and flags them instantly, with no AI involved, so it never misses one. Add a short reason for each, and it shows up on the flag. <em>Examples:</em> "literally" (filler), "game-changer" (cliché), "amazing" (hollow).</span></span></h4>
     <p class="voice-form__hint">Specific words/phrases the voice never uses. Used by the deterministic vocabulary check. <strong>Aim for 3+.</strong></p>
+    <div class="vf-colhead vf-colhead--pair" aria-hidden="true">
+      <span>Word or phrase</span>
+      <span>Why (optional)</span>
+      <span class="vf-colhead__spacer"></span>
+    </div>
     <div data-list="banned_words" class="form-list"></div>
     <button type="button" class="btn btn--ghost btn--small" data-add-row="banned_words">+ Add banned word</button>
   </section>
 
   <!-- §3 Cadence rules -->
   <section class="voice-form__section">
-    <h4 class="voice-form__h">Cadence rules</h4>
+    <h4 class="voice-form__h">Cadence rules<span class="vf-tip" tabindex="0" role="button" aria-label="About: cadence rules"><span class="vf-tip__bubble" role="tooltip">How the writing should feel — sentence length, rhythm, and stance. This is about structure, not word choice: short vs flowing, talking with the reader vs lecturing at them, concrete detail vs vague claims. The AI weighs drafts against these. <em>Examples:</em> "Short sentences, mostly very short."; "Prefer sensory detail over evaluative claims."</span></span></h4>
     <p class="voice-form__hint">Sentence-level rhythm. Sentence length, stance, lecture-vs-converse, sensory-over-claims.</p>
     <div data-list="cadence_rules" class="form-list"></div>
     <button type="button" class="btn btn--ghost btn--small" data-add-row="cadence_rules">+ Add cadence rule</button>
@@ -53,7 +62,7 @@
 
   <!-- §4 Voice-on examples -->
   <section class="voice-form__section">
-    <h4 class="voice-form__h">Voice-on examples</h4>
+    <h4 class="voice-form__h">Voice-on examples<span class="vf-tip" tabindex="0" role="button" aria-label="About: voice-on examples"><span class="vf-tip__bubble" role="tooltip">A few short passages — one to three sentences each — that sound exactly right for this brand. These are the gold standard the AI compares new drafts against, so the more real, on-brand samples you add, the sharper the tone score. <em>Example:</em> "A mat that holds steady through a full vinyasa. That's it. That's the post."</span></span></h4>
     <p class="voice-form__hint">Short paragraphs (1–3 sentences) that sound exactly right. Pairwise tone scoring uses these as the positive anchor. <strong>Aim for 3+.</strong></p>
     <div data-list="voice_on_examples" class="form-list"></div>
     <button type="button" class="btn btn--ghost btn--small" data-add-row="voice_on_examples">+ Add voice-on example</button>
@@ -61,7 +70,7 @@
 
   <!-- §5 Voice-off examples -->
   <section class="voice-form__section">
-    <h4 class="voice-form__h">Voice-off examples</h4>
+    <h4 class="voice-form__h">Voice-off examples<span class="vf-tip" tabindex="0" role="button" aria-label="About: voice-off examples"><span class="vf-tip__bubble" role="tooltip">Short passages that sound wrong for this brand, each with one line on why. They teach the AI what off-brand looks like, so it can tell the two apart. <em>Example:</em> "CRUSH your practice with this game-changer mat!" — why: violent verb, hype register.</span></span></h4>
     <p class="voice-form__hint">Short paragraphs that read off-brand, each with one line on why. The negative anchor for pairwise scoring. <strong>Aim for 2+.</strong></p>
     <div data-list="voice_off_examples" class="form-list"></div>
     <button type="button" class="btn btn--ghost btn--small" data-add-row="voice_off_examples">+ Add voice-off example</button>
@@ -69,7 +78,7 @@
 
   <!-- §6 Punctuation -->
   <section class="voice-form__section">
-    <h4 class="voice-form__h">Punctuation rules</h4>
+    <h4 class="voice-form__h">Punctuation rules<span class="vf-tip" tabindex="0" role="button" aria-label="About: punctuation rules"><span class="vf-tip__bubble" role="tooltip">How the brand handles exclamation marks, emojis, em-dashes, and ellipses. The exclamation and emoji settings are checked automatically; em-dashes and ellipses are described in plain words for the AI to weigh. <em>Example:</em> exclamation marks "at most one per post"; emojis "never."</span></span></h4>
     <div class="form-grid form-grid--two">
       <div class="form-field">
         <span class="field-label">Exclamation marks</span>
@@ -100,7 +109,7 @@
 
   <!-- §7 CTA rules -->
   <section class="voice-form__section">
-    <h4 class="voice-form__h">CTA voice rules</h4>
+    <h4 class="voice-form__h">CTA voice rules<span class="vf-tip" tabindex="0" role="button" aria-label="About: CTA voice rules"><span class="vf-tip__bubble" role="tooltip">How the brand asks people to act. List the calls-to-action it likes, the ones it avoids, and the overall tone of the ask. <em>Examples:</em> preferred — "Book a consultation"; avoid — "Buy now!!!"; tone of the ask — "measured, no urgency theater."</span></span></h4>
     <div class="form-grid form-grid--two">
       <div>
         <span class="field-label">Preferred CTA phrases</span>
@@ -121,23 +130,34 @@
 
   <!-- §8 Required terms -->
   <section class="voice-form__section">
-    <h4 class="voice-form__h">Industry-specific terminology</h4>
-    <p class="voice-form__hint">Required-term swaps. The deterministic check flags the wrong term and suggests the right one.</p>
+    <h4 class="voice-form__h">Industry-specific terminology<span class="vf-tip" tabindex="0" role="button" aria-label="About: industry-specific terminology"><span class="vf-tip__bubble" role="tooltip">Word swaps the brand insists on. <em>Use this</em> is the word to keep — the correct, on-brand term. <em>Not this</em> is the word to avoid; the checker scans drafts for it and flags it. <em>Why</em> is an optional note that shows up as the reason on the flag. Order matters — keep-word first, avoid-word second. <em>Example:</em> keep "lashes", avoid "extensions" → a draft saying "extensions" gets flagged and "lashes" is suggested.</span></span></h4>
+    <p class="voice-form__hint">Word swaps the brand insists on. <strong>Keep the first word, avoid the second</strong> — the check flags the avoided word in a draft and suggests the right one.</p>
+    <div class="vf-colhead vf-colhead--terms" aria-hidden="true">
+      <span>Use this</span>
+      <span>Not this</span>
+      <span>Why (optional)</span>
+      <span class="vf-colhead__spacer"></span>
+    </div>
     <div data-list="required_terms" class="form-list"></div>
     <button type="button" class="btn btn--ghost btn--small" data-add-row="required_terms">+ Add term swap</button>
   </section>
 
   <!-- §9 Exceptions -->
   <section class="voice-form__section">
-    <h4 class="voice-form__h">Client-specific exceptions</h4>
+    <h4 class="voice-form__h">Client-specific exceptions<span class="vf-tip" tabindex="0" role="button" aria-label="About: client-specific exceptions"><span class="vf-tip__bubble" role="tooltip">Places where the brand deliberately breaks its own rules, and why. Most brands don't need any — leave it empty if so. <em>Example:</em> "Exclamation marks are fine in holiday posts — the warmth fits there."</span></span></h4>
     <p class="voice-form__hint">When the brand breaks its own rules and why. Optional — most brands don't.</p>
+    <div class="vf-colhead vf-colhead--pair" aria-hidden="true">
+      <span>Exception</span>
+      <span>When it applies</span>
+      <span class="vf-colhead__spacer"></span>
+    </div>
     <div data-list="exceptions" class="form-list"></div>
     <button type="button" class="btn btn--ghost btn--small" data-add-row="exceptions">+ Add exception</button>
   </section>
 
   <!-- §10 Examples gallery -->
   <section class="voice-form__section">
-    <h4 class="voice-form__h">Examples gallery</h4>
+    <h4 class="voice-form__h">Examples gallery<span class="vf-tip" tabindex="0" role="button" aria-label="About: examples gallery"><span class="vf-tip__bubble" role="tooltip">Five to ten real posts, captions, or emails that nailed the voice. This is extra fuel for tone scoring — the more genuine on-brand writing the AI can see, the better it judges new drafts. Paste real published pieces, not invented ones.</span></span></h4>
     <p class="voice-form__hint">5–10 real captions, emails, or posts that nailed the voice. Pairwise scoring leans on these. <strong>Aim for 5+.</strong></p>
     <div data-list="examples_gallery" class="form-list"></div>
     <button type="button" class="btn btn--ghost btn--small" data-add-row="examples_gallery">+ Add gallery example</button>
@@ -252,6 +272,9 @@
     font-weight: var(--font-weight-semibold);
     margin: 0 0 0.35rem;
     color: var(--surface-900);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
   }
   .voice-form__hint {
     font-size: var(--text-sm);
@@ -259,6 +282,101 @@
     margin: 0 0 0.85rem;
     line-height: var(--leading-normal);
     max-width: 62ch;
+  }
+
+  /* Info tooltip on each section heading. The little "i" badge reveals a
+     bubble with a plain-English explanation + an example on hover/focus. */
+  .vf-tip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.05rem;
+    height: 1.05rem;
+    flex: none;
+    border-radius: 999px;
+    border: 1px solid var(--surface-300);
+    background: var(--surface-50);
+    color: var(--surface-500);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-style: italic;
+    line-height: 1;
+    cursor: help;
+    user-select: none;
+  }
+  .vf-tip::before { content: "i"; }
+  .vf-tip:hover,
+  .vf-tip:focus-visible {
+    border-color: var(--accent-400);
+    color: var(--accent-700);
+    outline: none;
+  }
+  .vf-tip__bubble {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: -0.5rem;
+    z-index: 30;
+    width: max-content;
+    max-width: 24rem;
+    padding: 0.7rem 0.85rem;
+    background: var(--surface-0);
+    color: var(--surface-800);
+    border: 1px solid var(--surface-300);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-normal);
+    font-style: normal;
+    line-height: var(--leading-normal);
+    text-transform: none;
+    letter-spacing: normal;
+    white-space: normal;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-3px);
+    transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+    pointer-events: none;
+  }
+  .vf-tip:hover .vf-tip__bubble,
+  .vf-tip:focus .vf-tip__bubble,
+  .vf-tip:focus-within .vf-tip__bubble {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+  .vf-tip__bubble em {
+    font-style: normal;
+    font-weight: var(--font-weight-semibold);
+    color: var(--accent-700);
+  }
+
+  /* Column headers for repeating rows — so the column meaning (e.g. the
+     "use this / not this" direction) stays clear even after the inputs are
+     filled. The grid modifier matches each section's row grid in global.css.
+     Hidden on narrow screens where rows stack vertically (the tooltip and
+     hint carry the explanation there). */
+  .vf-colhead {
+    display: grid;
+    gap: 0.55rem;
+    align-items: center;
+    padding: 0 0.6rem 0.35rem 0.75rem;
+  }
+  .vf-colhead--terms { grid-template-columns: 1fr 1fr 1.2fr auto; }
+  /* --pair: a two-field row (input + input + trash), shared by banned words
+     and exceptions, matching the default .form-row grid in global.css. */
+  .vf-colhead--pair { grid-template-columns: 1.4fr 1fr auto; }
+  .vf-colhead span:not(.vf-colhead__spacer) {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--surface-500);
+  }
+  .vf-colhead__spacer { width: 1.95rem; }
+  @media (max-width: 640px) {
+    .vf-colhead { display: none; }
   }
 
   /* Add-row button gets a little visual breathing room from the list. */
