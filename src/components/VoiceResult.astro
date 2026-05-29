@@ -30,32 +30,33 @@
     <div class="subscore" data-key="vocabulary">
       <div class="subscore__head">
         <span class="subscore__label">Vocabulary</span>
-        <span class="subscore__value">—</span>
+        <span class="subscore__value"><span class="subscore__num">—</span><span class="subscore__max">/100</span></span>
       </div>
       <div class="subscore__bar"><div class="subscore__fill"></div></div>
     </div>
     <div class="subscore" data-key="punctuation">
       <div class="subscore__head">
         <span class="subscore__label">Punctuation</span>
-        <span class="subscore__value">—</span>
+        <span class="subscore__value"><span class="subscore__num">—</span><span class="subscore__max">/100</span></span>
       </div>
       <div class="subscore__bar"><div class="subscore__fill"></div></div>
     </div>
     <div class="subscore" data-key="tone">
       <div class="subscore__head">
         <span class="subscore__label">Tone</span>
-        <span class="subscore__value">—</span>
+        <span class="subscore__value"><span class="subscore__num">—</span><span class="subscore__max">/100</span></span>
       </div>
       <div class="subscore__bar"><div class="subscore__fill"></div></div>
     </div>
     <div class="subscore" data-key="cadence">
       <div class="subscore__head">
         <span class="subscore__label">Cadence</span>
-        <span class="subscore__value">—</span>
+        <span class="subscore__value"><span class="subscore__num">—</span><span class="subscore__max">/100</span></span>
       </div>
       <div class="subscore__bar"><div class="subscore__fill"></div></div>
     </div>
   </div>
+  <p class="subscores__legend">Each score is out of 100 — higher means more on-brand.</p>
 
   <div class="result__body">
     <article class="draft-pane">
@@ -179,7 +180,12 @@
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 1rem;
-    margin-bottom: 1.75rem;
+    margin-bottom: 0.6rem;
+  }
+  .subscores__legend {
+    margin: 0 0 1.75rem;
+    font-size: var(--text-xs);
+    color: var(--surface-500);
   }
   @media (max-width: 760px) {
     .subscores { grid-template-columns: repeat(2, 1fr); }
@@ -208,6 +214,12 @@
     font-size: var(--text-sm);
     font-weight: var(--font-weight-semibold);
     color: var(--surface-900);
+  }
+  .subscore__max {
+    font-weight: 400;
+    font-size: var(--text-xs);
+    color: var(--surface-500);
+    margin-left: 0.05rem;
   }
   .subscore__bar {
     background: var(--surface-200);
