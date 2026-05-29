@@ -183,9 +183,9 @@ const ECKHARDT_DOC: VoiceDoc = {
   tone_words: ["authoritative", "warm", "evidence-led"],
   banned_words: [
     { word: "very", reason: "empty intensifier" },
-    { word: "really", reason: "same" },
+    { word: "really", reason: "empty intensifier" },
     { word: "super", reason: "informal, wrong register for medical" },
-    { word: "totally", reason: "same" },
+    { word: "totally", reason: "empty intensifier" },
     {
       word: "we can't wait",
       reason: "overeager, wrong register for clinic",
