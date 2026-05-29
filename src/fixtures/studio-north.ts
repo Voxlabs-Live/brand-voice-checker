@@ -28,7 +28,7 @@ const AURELIA_DOC: VoiceDoc = {
   tone_words: ["warm", "precise", "sensory"],
   banned_words: [
     { word: "amazing", reason: "overused, hollow" },
-    { word: "incredible", reason: "same problem" },
+    { word: "incredible", reason: "hollow superlative" },
     { word: "literally", reason: "filler intensifier" },
     { word: "game-changer", reason: "startup cliché, wrong vertical" },
     { word: "hack", reason: "wrong register for craft beauty" },
@@ -108,7 +108,7 @@ const MANTRA_DOC: VoiceDoc = {
   banned_words: [
     { word: "hustle", reason: "opposite of the practice" },
     { word: "crush", reason: "violent register, wrong for yoga" },
-    { word: "grind", reason: "same problem" },
+    { word: "grind", reason: "hustle-culture term, wrong for yoga" },
     { word: "game-changer", reason: "startup cliché" },
     { word: "literally", reason: "filler intensifier" },
     { word: "amazing", reason: "hollow" },
