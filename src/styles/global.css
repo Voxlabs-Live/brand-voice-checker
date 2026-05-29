@@ -501,8 +501,10 @@ input.input:focus {
  * don't apply to those — same gotcha as .form-row.
  *
  * Visual hierarchy:
+ *   - Badge: a small accent pill naming the rule kind (Banned word / Punctuation /
+ *     Terminology / Tone / Cadence) — carries the category so the body needn't.
  *   - Phrase: loudest — mono, accent-800, slightly above body size, anchors the card
- *   - Rule cited: quoted italic, surface-700, the "why"
+ *   - Rule cited: plain surface-700 line, the "why" (hidden when empty)
  *   - Try suggestion: clean body with a mono "TRY" label on a separate line
  *     so longer rewrites don't crash into the label.
  * ───────────────────────────────────────────────────────── */
@@ -533,18 +535,24 @@ input.input:focus {
   margin: 0;
   word-break: break-word;
 }
+.flag__badge {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  color: var(--accent-700);
+  background: oklch(from var(--accent-100) l c h / 0.6);
+  border: 1px solid oklch(from var(--accent-300) l c h / 0.6);
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+}
 .flag__rule {
   font-size: var(--text-sm);
   color: var(--surface-700);
-  font-style: italic;
   line-height: var(--leading-normal);
   margin: 0;
-}
-.flag__rule::before {
-  content: "\201C";
-}
-.flag__rule::after {
-  content: "\201D";
 }
 .flag__rewrite {
   font-size: var(--text-sm);

@@ -381,7 +381,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   } from "../lib/voice-doc-schema";
   import { computeDocStrength } from "../lib/voice-doc-strength";
   import { mountForm, type FormHandle } from "../lib/voice-doc-form";
-  import type { VoiceResult } from "../lib/voice-types";
+  import type { VoiceResult, VoiceFlagCategory } from "../lib/voice-types";
   import type { ApiResponse } from "../lib/types";
   import type { ImportResult } from "./api/import-doc";
 
@@ -1228,25 +1228,33 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       flagsEmpty.hidden = true;
       data.flags.forEach((f) => {
         const li = document.createElement("li");
+        const badge = document.createElement("span");
+        badge.className = "flag__badge";
+        badge.textContent = categoryLabel(f.category);
         const phrase = document.createElement("p");
         phrase.className = "flag__phrase";
         phrase.textContent = f.phrase;
-        const rule = document.createElement("p");
-        rule.className = "flag__rule";
-        rule.textContent = f.rule_cited;
-        const rewrite = document.createElement("p");
-        rewrite.className = "flag__rewrite";
-        const label = document.createElement("span");
-        label.className = "flag__rewrite-label";
-        label.textContent = "Try";
-        const rewriteText = document.createElement("span");
-        rewriteText.className = "flag__rewrite-text";
-        rewriteText.textContent = f.suggested_rewrite;
-        rewrite.appendChild(label);
-        rewrite.appendChild(rewriteText);
+        li.appendChild(badge);
         li.appendChild(phrase);
-        li.appendChild(rule);
-        li.appendChild(rewrite);
+        if (f.rule_cited) {
+          const rule = document.createElement("p");
+          rule.className = "flag__rule";
+          rule.textContent = f.rule_cited;
+          li.appendChild(rule);
+        }
+        if (f.suggested_rewrite) {
+          const rewrite = document.createElement("p");
+          rewrite.className = "flag__rewrite";
+          const label = document.createElement("span");
+          label.className = "flag__rewrite-label";
+          label.textContent = "Try";
+          const rewriteText = document.createElement("span");
+          rewriteText.className = "flag__rewrite-text";
+          rewriteText.textContent = f.suggested_rewrite;
+          rewrite.appendChild(label);
+          rewrite.appendChild(rewriteText);
+          li.appendChild(rewrite);
+        }
         flagsList.appendChild(li);
       });
     }
@@ -1328,8 +1336,24 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       "",
       ...d.flags.map(
         (f, i) =>
-          `${i + 1}. "${f.phrase}" — violates: ${f.rule_cited}\n   Try: ${f.suggested_rewrite}`
+          `${i + 1}. [${categoryLabel(f.category)}] "${f.phrase}"` +
+          (f.rule_cited ? ` — ${f.rule_cited}` : "") +
+          (f.suggested_rewrite ? `\n   Try: ${f.suggested_rewrite}` : "")
       ),
     ].join("\n");
+  }
+
+  /** Human-readable label for a flag's category badge. */
+  function categoryLabel(category: VoiceFlagCategory): string {
+    switch (category) {
+      case "banned_word":
+        return "Banned word";
+      case "punctuation":
+        return "Punctuation";
+      case "terminology":
+        return "Terminology";
+      case "voice":
+        return "Voice";
+    }
   }
 </script>

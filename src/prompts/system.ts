@@ -67,13 +67,13 @@ Give a one-sentence "cadence_reason" naming the specific cadence trait. Quote th
 
 3. TONE / CADENCE FLAGS
 
-For phrases in the draft that exemplify a tone or cadence violation (NOT banned-word or punctuation violations — the deterministic pre-pass owns those):
+For phrases in the draft that exemplify a tone or cadence violation (NOT banned-word, punctuation, or terminology/required-term violations — the deterministic pre-pass owns ALL of those):
 
 - "phrase": the EXACT substring from the draft (the UI substring-matches to highlight)
-- "rule_cited": quote the relevant rule verbatim, in one sentence. Plain English, no § notation.
+- "rule_cited": quote the relevant rule verbatim, in one sentence. Plain English, no § notation. Do NOT prefix it with a category label like "Tone:" or "Cadence:" — the UI shows a category badge already, so start directly with the reason.
 - "suggested_rewrite": an on-brand replacement for just that phrase
 
-Be conservative: only flag what you can cite a rule for. If the only issue is a banned word, leave it for the deterministic pass — don't double-flag.
+Be conservative: only flag what you can cite a rule for. If the only issue is a banned word, a punctuation mark, or a required-term swap (e.g. "clients" → "patients"), leave it for the deterministic pass — don't double-flag, and don't flag a longer phrase just because it CONTAINS one of those (e.g. don't flag "to our clients" when "clients" is already a required-term swap).
 
 4. REWRITE
 
@@ -125,7 +125,7 @@ Correct output:
   "flags": [
     {
       "phrase": "completely transform your practice",
-      "rule_cited": "Tone: calm, grounded, honest.",
+      "rule_cited": "The brand's tone words are calm, grounded, honest — this reads as a transformation promise.",
       "suggested_rewrite": "settle into your practice"
     },
     {

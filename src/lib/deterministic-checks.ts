@@ -35,11 +35,11 @@ export function runDeterministicChecks(
     if (seen.has(key)) continue;
     seen.add(key);
     flags.push({
+      category: "banned_word",
       phrase,
-      rule_cited: bw.reason
-        ? `Banned word: "${word}" — ${bw.reason}.`
-        : `Banned word: "${word}".`,
-      suggested_rewrite: "(remove or replace)",
+      // The badge says "Banned word" and the phrase is the card title, so the
+      // line carries just the reason (if the brand gave one).
+      rule_cited: bw.reason ? bw.reason.trim() : "",
     });
   }
 
@@ -55,9 +55,9 @@ export function runDeterministicChecks(
       if (seen.has(key)) continue;
       seen.add(key);
       flags.push({
+        category: "punctuation",
         phrase: m[0],
         rule_cited: punctRule.ruleText,
-        suggested_rewrite: ".",
       });
       if (m[0].length === 0) re.lastIndex++;
     }
@@ -73,10 +73,12 @@ export function runDeterministicChecks(
     const key = `term:${wrong.toLowerCase()}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const note = t.note ? ` (${t.note})` : "";
     flags.push({
+      category: "terminology",
       phrase,
-      rule_cited: `Terminology: use "${right}", not "${wrong}"${note}.`,
+      // Badge says "Terminology", phrase is the wrong term, the rewrite shows
+      // the right one — so the line only carries the brand's note, if any.
+      rule_cited: t.note ? t.note.trim() : "",
       suggested_rewrite: right,
     });
   }
@@ -146,13 +148,13 @@ function exclamationPattern(policy: ExclamationPolicy): PunctPattern | null {
     case "never":
       return {
         pattern: /!+/g,
-        ruleText: "Punctuation rule: Exclamation marks: never. No exceptions.",
+        ruleText: "Exclamation marks: never. No exceptions.",
       };
     case "at_most_one":
       return {
         pattern: /!{2,}/g,
         ruleText:
-          "Punctuation rule: Exclamation marks: at most one per post. Never multiple in a row.",
+          "Exclamation marks: at most one per post. Never multiple in a row.",
       };
     case "freely":
       return null;

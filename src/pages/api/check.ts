@@ -52,9 +52,46 @@ async function callLlmOnce(
     cadence_score_1_5: clamp1to5(parsed.cadence_score_1_5),
     tone_reason: parsed.tone_reason ?? "",
     cadence_reason: parsed.cadence_reason ?? "",
-    flags: Array.isArray(parsed.flags) ? parsed.flags : [],
+    flags: Array.isArray(parsed.flags) ? parsed.flags.map(normalizeLlmFlag) : [],
     rewritten_draft: parsed.rewritten_draft ?? draft,
   };
+}
+
+/**
+ * Coerce a raw LLM flag into a well-formed VoiceFlag. LLM flags are always
+ * tone/cadence; anything else (or a missing category) defaults to "tone".
+ */
+function normalizeLlmFlag(f: unknown): VoiceFlag {
+  const raw = (f ?? {}) as Partial<VoiceFlag>;
+  return {
+    // LLM flags are always tone/cadence — collapsed to a single "voice" badge.
+    category: "voice",
+    phrase: typeof raw.phrase === "string" ? raw.phrase : "",
+    rule_cited:
+      typeof raw.rule_cited === "string"
+        ? stripCategoryPrefix(raw.rule_cited)
+        : "",
+    suggested_rewrite:
+      typeof raw.suggested_rewrite === "string" && raw.suggested_rewrite.trim()
+        ? raw.suggested_rewrite
+        : undefined,
+  };
+}
+
+/**
+ * Drop a leading "Tone:" / "Cadence:" label from an LLM reason. The category
+ * badge already names the rule kind, so the prefix is redundant — and the model
+ * adds it inconsistently. Re-capitalize the first letter when we strip one.
+ */
+function stripCategoryPrefix(text: string): string {
+  const stripped = text.replace(/^\s*(?:tone|cadence)\s*:\s*/i, "");
+  if (stripped === text) return text.trim();
+  const t = stripped.trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function clamp1to5(n: unknown): number {

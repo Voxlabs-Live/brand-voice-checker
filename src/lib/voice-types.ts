@@ -1,10 +1,38 @@
+/**
+ * Which kind of rule the flag violates. Drives the category badge on each
+ * flag card. The three deterministic checks set this precisely. LLM flags all
+ * use "voice": the tone-vs-cadence line is too blurry to label reliably per
+ * flag, so the badge stays honest while the tone/cadence split lives in the
+ * sub-scores instead.
+ */
+export type VoiceFlagCategory =
+  | "banned_word"
+  | "punctuation"
+  | "terminology"
+  | "voice";
+
 export interface VoiceFlag {
+  /** Which rule kind this violates — rendered as the card's category badge. */
+  category: VoiceFlagCategory;
   /** Exact substring from the draft. Client finds first occurrence to highlight. */
   phrase: string;
-  /** A single sentence quoted from the voice doc, in quotes. */
+  /**
+   * The "why" shown under the phrase. No longer wrapped in quotes by the UI —
+   * the category badge carries the rule kind, so this is a plain reason.
+   * May be empty for deterministic flags where the badge + phrase + suggested
+   * rewrite already tell the whole story (e.g. a terminology swap with no note);
+   * the UI hides the line when it's empty.
+   */
   rule_cited: string;
-  /** Suggested rewrite of just this phrase. */
-  suggested_rewrite: string;
+  /**
+   * Suggested rewrite of just this phrase. Optional: omitted when there's no
+   * substantive suggestion to make — e.g. banned words (the rule already says
+   * "remove or replace") and exclamation overuse (the rule says how many are
+   * allowed). The UI hides the "Try" block when this is absent rather than
+   * showing a meaningless placeholder. Always present for required-term swaps
+   * (the right term) and LLM tone/cadence flags (a real rewrite).
+   */
+  suggested_rewrite?: string;
 }
 
 export type VoiceBand =
