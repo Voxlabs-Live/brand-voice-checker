@@ -447,6 +447,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   const pickerDel = editingView.querySelector('[data-picker-delete]') as HTMLButtonElement;
   const pickerSave = editingView.querySelector('[data-picker-save]') as HTMLButtonElement;
   const editingSamplesRow = editingView.querySelector('[data-samples-row-editing]') as HTMLElement;
+  const samplesDetails = editingView.querySelector('.samples-details') as HTMLDetailsElement | null;
   const strengthBox = formRoot.querySelector('[data-field="strength_meter"]') as HTMLElement;
   const strengthScore = formRoot.querySelector('[data-field="strength_score"]') as HTMLElement;
   const strengthSummary = formRoot.querySelector('[data-field="strength_summary"]') as HTMLElement;
@@ -459,9 +460,12 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   const critiquePanel = editingView.querySelector('[data-critique]') as HTMLElement | null;
 
   const form: FormHandle = mountForm(formRoot);
+  let autosaveTimer: number | undefined;
   form.onChange((doc) => {
     currentDoc = doc;
     updateStrengthMeter();
+    updateStartingPointsVisibility();
+    scheduleAutosave();
   });
 
   // Bootstrap.
@@ -470,6 +474,24 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   populatePickerSelect();
   populateSummarySwitcher();
   initialMode();
+
+  // Safety net for the one case auto-save can't cover: a brand-new, still-
+  // unnamed doc with content can't be persisted (save needs a client name).
+  // Anything named is flushed synchronously here before the page unloads.
+  window.addEventListener("beforeunload", (e) => {
+    flushAutosave();
+    if (mode === "editing") {
+      const doc = form.readDoc();
+      if (
+        !doc.id.startsWith(SAMPLE_ID_PREFIX) &&
+        !doc.client_name.trim() &&
+        docHasContent(doc)
+      ) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    }
+  });
 
   function initialMode(): void {
     const docs = listDocs();
@@ -617,7 +639,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     if (uploadDetails) uploadDetails.open = false;
     exitImportOnlyMode();
     setMode("editing");
-    setPickerStatus("New blank doc — fill in the form, then click Save changes.", "warn");
+    setPickerStatus("New blank doc — add a client name and it saves automatically as you go.", "warn");
   });
   emptyImportBtn.addEventListener("click", () => {
     currentDoc = emptyVoiceDoc();
@@ -655,7 +677,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     if (uploadDetails) uploadDetails.open = false;
     exitImportOnlyMode();
     setMode("editing");
-    setPickerStatus("New blank doc — fill in the form, then click Save changes.", "warn");
+    setPickerStatus("New blank doc — add a client name and it saves automatically as you go.", "warn");
   });
   summaryImportBtn.addEventListener("click", () => {
     currentDoc = emptyVoiceDoc();
@@ -694,15 +716,21 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       e.preventDefault();
       exitImportOnlyMode();
       if (uploadDetails) uploadDetails.open = false;
-      setPickerStatus("New blank doc — fill in the form, then click Save changes.", "warn");
+      setPickerStatus("New blank doc — add a client name and it saves automatically as you go.", "warn");
     });
   }
 
   // ─── Editing-mode picker + form interactions ─────────────────────────
   pickerSelect.addEventListener("change", () => {
-    const doc = getDoc(pickerSelect.value);
+    // Capture the target BEFORE flushing — flushAutosave() can call
+    // syncPickerOption(), which resets pickerSelect.value to the doc we're
+    // leaving. Without this capture, the switch would reload the old doc.
+    const targetId = pickerSelect.value;
+    flushAutosave(); // persist any pending edits before switching away
+    const doc = getDoc(targetId);
     if (doc) {
       currentDoc = doc;
+      pickerSelect.value = targetId; // restore in case flush moved it
       form.setDoc(doc);
       updateStrengthMeter();
       setPickerStatus("");
@@ -714,7 +742,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     form.setDoc(blank);
     pickerSelect.value = "";
     updateStrengthMeter();
-    setPickerStatus("New blank doc — give it a client name and save.", "warn");
+    setPickerStatus("New blank doc — add a client name and it saves automatically as you go.", "warn");
   });
   pickerDup.addEventListener("click", () => {
     if (!pickerSelect.value) {
@@ -764,6 +792,10 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     updateStrengthMeter();
     setPickerStatus("Deleted.", "saved");
   });
+  // Auto-save replaces the manual "Save changes" button — hide it and let the
+  // status line communicate save state. (Handler kept harmless in case it's
+  // ever surfaced again.)
+  pickerSave.hidden = true;
   pickerSave.addEventListener("click", () => {
     const saved = persistCurrent();
     if (saved) setPickerStatus(`Saved "${saved.client_name}".`, "saved");
@@ -815,6 +847,115 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     pickerStatus.textContent = message;
     if (state) pickerStatus.dataset.state = state;
     else delete pickerStatus.dataset.state;
+  }
+
+  // ─── Auto-save ───────────────────────────────────────────────────────
+  // Edits persist automatically (debounced). The dirty check compares the
+  // live form against the STORED doc of the same id, so programmatic loads
+  // (which match storage) never trigger a save — only real edits and applied
+  // suggestions do. Samples are read-only demo seeds and never auto-save.
+  function docHasContent(doc: VoiceDoc): boolean {
+    return (
+      doc.tone_words.some((t) => t.trim()) ||
+      doc.banned_words.length > 0 ||
+      doc.cadence_rules.length > 0 ||
+      doc.voice_on_examples.length > 0 ||
+      doc.voice_off_examples.length > 0 ||
+      doc.required_terms.length > 0 ||
+      doc.examples_gallery.length > 0
+    );
+  }
+
+  function setSaveStatus(state: "saving" | "saved" | "needs-name"): void {
+    if (state === "saving") setPickerStatus("Saving…");
+    else if (state === "saved") setPickerStatus("✓ All changes saved automatically", "saved");
+    else setPickerStatus("Add a client name — edits save automatically once it's named.", "warn");
+  }
+
+  /** Ensure the picker dropdown shows + selects the given (saved) doc. */
+  function syncPickerOption(doc: VoiceDoc): void {
+    let opt = [...pickerSelect.options].find((o) => o.value === doc.id);
+    if (!opt) {
+      opt = document.createElement("option");
+      opt.value = doc.id;
+      pickerSelect.appendChild(opt);
+    }
+    opt.textContent = doc.id.startsWith(SAMPLE_ID_PREFIX)
+      ? `${doc.client_name} — sample`
+      : doc.client_name;
+    pickerSelect.value = doc.id;
+  }
+
+  // Order-stable JSON so a doc loaded from storage (e.g. a sample seeded in
+  // fixture key-order) doesn't read as "changed" against the form's
+  // reconstructed key-order. Array order is preserved (reordering items IS a
+  // real edit); only object keys are sorted.
+  function stableStringify(value: unknown): string {
+    if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+    if (value && typeof value === "object") {
+      const obj = value as Record<string, unknown>;
+      return `{${Object.keys(obj)
+        .sort()
+        .map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`)
+        .join(",")}}`;
+    }
+    return JSON.stringify(value);
+  }
+
+  // Compare docs by CONTENT only. saveDoc() stamps a fresh `updated_at` on every
+  // write, and readDoc() never produces one — so a raw stringify of the stored
+  // doc vs. the form's doc would ALWAYS differ, making every doc read as "dirty"
+  // (spurious autosaves on load, and a dropdown switch that clobbers itself).
+  // Strip the volatile metadata before comparing.
+  function contentKey(doc: VoiceDoc): string {
+    const { updated_at, id, ...content } = doc as VoiceDoc & Record<string, unknown>;
+    return stableStringify(content);
+  }
+
+  function scheduleAutosave(): void {
+    if (mode !== "editing") return;
+    const doc = form.readDoc();
+    if (!doc.client_name.trim()) {
+      if (docHasContent(doc)) setSaveStatus("needs-name");
+      return;
+    }
+    const stored = getDoc(doc.id);
+    if (stored && contentKey(stored) === contentKey(doc)) return; // unchanged
+    setSaveStatus("saving");
+    window.clearTimeout(autosaveTimer);
+    autosaveTimer = window.setTimeout(flushAutosave, 700);
+  }
+
+  /** Persist pending edits immediately. Safe to call on transitions/unload. */
+  function flushAutosave(): void {
+    window.clearTimeout(autosaveTimer);
+    if (mode !== "editing") return;
+    const doc = form.readDoc();
+    if (!doc.client_name.trim()) {
+      if (docHasContent(doc)) setSaveStatus("needs-name");
+      return;
+    }
+    const stored = getDoc(doc.id);
+    if (stored && contentKey(stored) === contentKey(doc)) {
+      setSaveStatus("saved");
+      return;
+    }
+    const saved = saveDoc(doc);
+    currentDoc = saved;
+    syncPickerOption(saved);
+    setSaveStatus("saved");
+  }
+
+  // The "Try a sample" + "Import a doc" rows are starting-point affordances —
+  // only relevant while the current doc is still blank. Once it has content
+  // (an existing client, an import, or a doc you've begun filling in), they're
+  // clutter and a footgun, so hide them. Switching docs lives in the dropdown.
+  // (In import-only mode the doc is blank, so the upload stays visible — which
+  // is correct; the samples row is hidden there by the import-only CSS anyway.)
+  function updateStartingPointsVisibility(): void {
+    const fresh = !docHasContent(currentDoc);
+    if (samplesDetails) samplesDetails.hidden = !fresh;
+    if (uploadDetails) uploadDetails.hidden = !fresh;
   }
 
   // ─── Strength meter + summary rendering ──────────────────────────────
@@ -910,6 +1051,14 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       const f = uploadInput.files?.[0];
       if (f) void handleUpload(f);
     });
+    // Click-to-browse: the transparent <input> overlays the drop area, but in
+    // some browsers the centered hint text intercepts the click before it
+    // reaches the input, so the file picker never opens (drag-drop still
+    // works). Forward any click that didn't land on the input itself to the
+    // input — this preserves the user gesture so the native dialog opens.
+    uploadDrop.addEventListener("click", (e) => {
+      if (e.target !== uploadInput) uploadInput.click();
+    });
   }
 
   async function handleUpload(file: File): Promise<void> {
@@ -932,7 +1081,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       uploadStatus.dataset.state = "success";
       uploadStatus.textContent = payload.data.cached
         ? "Re-imported from cache (identical to a previous upload)."
-        : `Imported ${payload.data.filename}. Review the suggestions, then click Save changes.`;
+        : `Imported ${payload.data.filename}. Saved automatically — review the suggestions below.`;
       delete uploadDrop.dataset.state;
       applyImport(payload.data);
     } catch (err) {
@@ -945,14 +1094,17 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   function applyImport(result: ImportResult): void {
     currentDoc = result.doc;
     form.setDoc(result.doc);
-    pickerSelect.value = "";
     updateStrengthMeter();
     renderCritique(result);
     // Reveal the full editing view (form, picker, samples) now that there's
     // something to review — import-only mode is no longer appropriate.
     exitImportOnlyMode();
+    // The imported doc has a name, so persist it right away and reflect it in
+    // the picker (flushAutosave → syncPickerOption). Auto-save then keeps it in
+    // sync as the user reviews and applies suggestions.
+    flushAutosave();
     setPickerStatus(
-      `Imported "${result.doc.client_name}" from ${result.filename}. Review and save.`,
+      `Imported "${result.doc.client_name}" from ${result.filename}. Saved automatically — review and tweak below.`,
       "saved"
     );
     if (uploadDetails) uploadDetails.open = false;
@@ -972,6 +1124,115 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     10: "Examples gallery",
   };
 
+  // Sections whose suggestion items map cleanly onto a voice-doc field, so the
+  // "Apply" button can actually insert them. Other sections (e.g. 6 punctuation,
+  // 9 exceptions) produce advisory prose with no structured target — for those
+  // we show the suggestion text but no Apply button, so it can't silently no-op.
+  // Keep in lockstep with the switch in applySuggestion().
+  const APPLIABLE_SECTIONS = new Set([2, 3, 4, 5, 7, 8, 10]);
+
+  /**
+   * Render suggestion example items as readable, structured DOM — never raw
+   * JSON. Item shape is detected by its keys so the renderer is robust to which
+   * section produced it:
+   *   string                       → a plain quoted line (cadence/voice-on/gallery)
+   *   { example, why_wrong }       → voice-off: the off-brand line + why it fails
+   *   { use, not, note? }          → terminology: use X, not Y
+   *   { word, reason? }            → banned word + reason
+   *   { preferred, banned, tone }  → CTA rules: preferred/avoid phrase chips + tone
+   */
+  function buildExampleList(items: Array<string | object>): HTMLUListElement {
+    const wrap = document.createElement("ul");
+    wrap.className = "critique__suggestion-examples";
+
+    for (const item of items) {
+      const li = document.createElement("li");
+      li.className = "critique__ex";
+
+      if (typeof item === "string") {
+        li.classList.add("critique__ex--quote");
+        li.textContent = item;
+      } else {
+        const obj = item as Record<string, any>;
+        if ("example" in obj) {
+          li.classList.add("critique__ex--voiceoff");
+          const quote = document.createElement("span");
+          quote.className = "critique__ex-quote";
+          quote.textContent = obj.example;
+          li.appendChild(quote);
+          if (obj.why_wrong) {
+            const why = document.createElement("span");
+            why.className = "critique__ex-why";
+            why.textContent = obj.why_wrong;
+            li.appendChild(why);
+          }
+        } else if ("use" in obj && "not" in obj) {
+          li.classList.add("critique__ex--term");
+          const use = document.createElement("strong");
+          use.textContent = obj.use;
+          const not = document.createElement("span");
+          not.className = "critique__ex-strike";
+          not.textContent = obj.not;
+          li.append("Use ", use, ", not ", not);
+          if (obj.note) {
+            const note = document.createElement("span");
+            note.className = "critique__ex-note";
+            note.textContent = ` (${obj.note})`;
+            li.appendChild(note);
+          }
+        } else if ("word" in obj) {
+          li.classList.add("critique__ex--term");
+          const word = document.createElement("strong");
+          word.textContent = obj.word;
+          li.appendChild(word);
+          if (obj.reason) {
+            const reason = document.createElement("span");
+            reason.className = "critique__ex-note";
+            reason.textContent = ` — ${obj.reason}`;
+            li.appendChild(reason);
+          }
+        } else if ("preferred" in obj || "banned" in obj || "tone" in obj) {
+          li.classList.add("critique__ex--cta");
+          // Normalise: AI sometimes returns a plain string instead of string[].
+          const toArr = (v: unknown): unknown[] =>
+            Array.isArray(v) ? v : typeof v === "string" && v.trim() ? [v] : [];
+          const group = (label: string, arr: unknown, variant: string) => {
+            const items = toArr(arr);
+            if (items.length === 0) return;
+            const g = document.createElement("div");
+            g.className = "critique__cta-group";
+            const lab = document.createElement("span");
+            lab.className = "critique__cta-label";
+            lab.textContent = label;
+            g.appendChild(lab);
+            for (const phrase of items) {
+              const chip = document.createElement("span");
+              chip.className = `critique__chip critique__chip--${variant}`;
+              chip.textContent = String(phrase);
+              g.appendChild(chip);
+            }
+            li.appendChild(g);
+          };
+          group("Preferred", obj.preferred, "ok");
+          group("Avoid", obj.banned, "bad");
+          if (obj.tone) {
+            const tone = document.createElement("div");
+            tone.className = "critique__cta-tone";
+            tone.textContent = obj.tone;
+            li.appendChild(tone);
+          }
+        } else {
+          // Unknown shape — show its string values readably rather than JSON.
+          li.textContent = Object.values(obj)
+            .filter((v) => typeof v === "string")
+            .join(" — ");
+        }
+      }
+      wrap.appendChild(li);
+    }
+    return wrap;
+  }
+
   function renderCritique(result: ImportResult): void {
     if (!critiquePanel) return;
     critiquePanel.hidden = false;
@@ -983,7 +1244,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
 
     const sectionsList = critiquePanel.querySelector('[data-field="critique_sections"]') as HTMLElement;
     sectionsList.innerHTML = "";
-    const deterministicSet = new Set(result.deterministic_sections ?? []);
+    const statedSet = new Set(result.stated_sections ?? []);
     for (const s of result.strength.sections) {
       const li = document.createElement("li");
       const pill = document.createElement("span");
@@ -992,15 +1253,20 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       pill.textContent = s.status;
       const text = document.createElement("span");
       text.className = "critique__section-text";
-      const main = document.createElement("span");
-      main.textContent = `${SECTION_LABELS[s.section] ?? s.label} — ${s.reason}`;
-      text.appendChild(main);
+      const name = document.createElement("span");
+      name.className = "critique__section-name";
+      name.textContent = SECTION_LABELS[s.section] ?? s.label;
+      const reason = document.createElement("span");
+      reason.className = "critique__section-reason";
+      reason.textContent = s.reason;
+      text.appendChild(name);
+      text.appendChild(reason);
       // Only show an origin badge when something is present — "missing" sections
       // came from neither source, so labeling them is noise.
       if (s.status !== "missing") {
         const origin = document.createElement("span");
         origin.className = "critique__origin";
-        const fromDoc = deterministicSet.has(s.section);
+        const fromDoc = statedSet.has(s.section);
         origin.dataset.origin = fromDoc ? "extracted" : "filled";
         origin.textContent = fromDoc ? "from your doc" : "we filled this in";
         text.appendChild(origin);
@@ -1027,7 +1293,11 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
         section.className = "critique__suggestion-section";
         section.textContent = SECTION_LABELS[sug.section] ?? sug.section_label;
         head.appendChild(section);
-        if (Array.isArray(sug.example_items) && sug.example_items.length > 0) {
+        if (
+          Array.isArray(sug.example_items) &&
+          sug.example_items.length > 0 &&
+          APPLIABLE_SECTIONS.has(sug.section)
+        ) {
           const apply = document.createElement("button");
           apply.type = "button";
           apply.className = "btn btn--ghost btn--small";
@@ -1045,14 +1315,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
         li.appendChild(head);
         li.appendChild(text);
         if (Array.isArray(sug.example_items) && sug.example_items.length > 0) {
-          const exList = document.createElement("ul");
-          exList.className = "critique__suggestion-examples";
-          for (const item of sug.example_items) {
-            const exLi = document.createElement("li");
-            exLi.textContent = typeof item === "string" ? item : JSON.stringify(item);
-            exList.appendChild(exLi);
-          }
-          li.appendChild(exList);
+          li.appendChild(buildExampleList(sug.example_items));
         }
         sugList.appendChild(li);
       }
@@ -1085,6 +1348,19 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
           if (typeof it === "object" && "example" in (it as any)) {
             doc.voice_off_examples.push(it as { example: string; why_wrong: string });
           }
+        }
+        break;
+      case 7:
+        for (const it of items) {
+          if (typeof it !== "object" || !it) continue;
+          const c = it as { preferred?: unknown; banned?: unknown; tone?: string };
+          const strToArr = (v: unknown): string[] =>
+            Array.isArray(v) ? (v as string[]) : typeof v === "string" && v.trim() ? [v] : [];
+          const pref = strToArr(c.preferred);
+          const banned = strToArr(c.banned);
+          if (pref.length) doc.cta.preferred = pref;
+          if (banned.length) doc.cta.banned = banned;
+          if (typeof c.tone === "string") doc.cta.tone = c.tone;
         }
         break;
       case 8:
