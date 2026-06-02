@@ -204,6 +204,22 @@
     border: 1px solid var(--surface-150);
     border-radius: var(--radius);
     padding: 0.45rem 0.6rem;
+    position: relative; /* anchor for the per-item Add button */
+  }
+  /* Extra right padding when a per-item Add button is present so text
+   * never overlaps it. We use the :has() check so items without the
+   * button keep their original compact padding. */
+  .critique__ex:has(.critique__ex-add) { padding-right: 3.6rem; }
+
+  /* Per-item granular Apply button — sits in the top-right corner. */
+  .critique__ex-add {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.4rem;
+    padding: 0.15rem 0.45rem;
+    font-size: var(--text-xs);
+    line-height: 1.4;
+    border-radius: var(--radius);
   }
   /* plain quoted line — cadence / voice-on / gallery */
   .critique__ex--quote {

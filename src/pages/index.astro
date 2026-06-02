@@ -1141,7 +1141,14 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
    *   { word, reason? }            → banned word + reason
    *   { preferred, banned, tone }  → CTA rules: preferred/avoid phrase chips + tone
    */
-  function buildExampleList(items: Array<string | object>): HTMLUListElement {
+  /**
+   * @param onApplyItem - When provided, each item renders a small "Add" button
+   *   that applies only that one item. Pass null/undefined to omit per-item buttons.
+   */
+  function buildExampleList(
+    items: Array<string | object>,
+    onApplyItem?: (item: string | object) => void
+  ): HTMLUListElement {
     const wrap = document.createElement("ul");
     wrap.className = "critique__suggestion-examples";
 
@@ -1228,6 +1235,20 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
             .join(" — ");
         }
       }
+      // Per-item Add button — only when the caller supplies a handler.
+      if (onApplyItem) {
+        const addBtn = document.createElement("button");
+        addBtn.type = "button";
+        addBtn.className = "btn btn--ghost critique__ex-add";
+        addBtn.dataset.itemAdd = "";
+        addBtn.textContent = "Add";
+        addBtn.addEventListener("click", () => {
+          onApplyItem(item);
+          addBtn.textContent = "Added";
+          addBtn.disabled = true;
+        });
+        li.appendChild(addBtn);
+      }
       wrap.appendChild(li);
     }
     return wrap;
@@ -1279,47 +1300,109 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     const sugList = critiquePanel.querySelector('[data-field="critique_suggestions"]') as HTMLElement;
     const sugEmpty = critiquePanel.querySelector('[data-field="critique_no_suggestions"]') as HTMLElement;
     sugList.innerHTML = "";
-    if (!result.suggestions || result.suggestions.length === 0) {
-      sugList.hidden = true;
-      sugEmpty.hidden = false;
-    } else {
-      sugList.hidden = false;
-      sugEmpty.hidden = true;
-      for (const sug of result.suggestions) {
-        const li = document.createElement("li");
-        const head = document.createElement("div");
-        head.className = "critique__suggestion-head";
-        const section = document.createElement("span");
-        section.className = "critique__suggestion-section";
-        section.textContent = SECTION_LABELS[sug.section] ?? sug.section_label;
-        head.appendChild(section);
-        if (
-          Array.isArray(sug.example_items) &&
-          sug.example_items.length > 0 &&
-          APPLIABLE_SECTIONS.has(sug.section)
-        ) {
-          const apply = document.createElement("button");
-          apply.type = "button";
-          apply.className = "btn btn--ghost btn--small";
-          apply.textContent = "Apply →";
-          apply.addEventListener("click", () => {
-            applySuggestion(sug);
-            apply.textContent = "Applied";
-            apply.disabled = true;
-          });
-          head.appendChild(apply);
-        }
-        const text = document.createElement("p");
-        text.className = "critique__suggestion-text";
-        text.textContent = sug.suggestion;
-        li.appendChild(head);
-        li.appendChild(text);
-        if (Array.isArray(sug.example_items) && sug.example_items.length > 0) {
-          li.appendChild(buildExampleList(sug.example_items));
-        }
-        sugList.appendChild(li);
+
+    /** Helper: build and append one suggestion card to sugList. */
+    const appendSugCard = (
+      sectionNum: number,
+      sectionLabel: string,
+      bodyText: string,
+      exampleItems?: Array<string | object>
+    ) => {
+      const li = document.createElement("li");
+      const head = document.createElement("div");
+      head.className = "critique__suggestion-head";
+      const sectionSpan = document.createElement("span");
+      sectionSpan.className = "critique__suggestion-section";
+      sectionSpan.textContent = SECTION_LABELS[sectionNum] ?? sectionLabel;
+      head.appendChild(sectionSpan);
+
+      const hasAppliable = Array.isArray(exampleItems) &&
+        exampleItems.length > 0 &&
+        APPLIABLE_SECTIONS.has(sectionNum);
+
+      let applyAllBtn: HTMLButtonElement | null = null;
+      let exList: HTMLUListElement | null = null;
+
+      if (hasAppliable) {
+        applyAllBtn = document.createElement("button");
+        applyAllBtn.type = "button";
+        applyAllBtn.className = "btn btn--ghost btn--small";
+        applyAllBtn.textContent = "Apply all →";
+        head.appendChild(applyAllBtn);
       }
+
+      const text = document.createElement("p");
+      text.className = "critique__suggestion-text";
+      text.textContent = bodyText;
+      li.appendChild(head);
+      li.appendChild(text);
+
+      if (Array.isArray(exampleItems) && exampleItems.length > 0) {
+        const sugObj = { section: sectionNum, section_label: sectionLabel,
+          suggestion: bodyText, example_items: exampleItems };
+
+        // Granular per-item Apply — tracks how many items have been applied
+        // individually so the Apply all button can auto-disable when all are done.
+        let appliedItemCount = 0;
+        const onApplyItem = hasAppliable ? (item: string | object) => {
+          applySuggestion({ ...sugObj, example_items: [item] });
+          appliedItemCount++;
+          if (applyAllBtn && appliedItemCount === exampleItems.length) {
+            applyAllBtn.textContent = "Applied";
+            applyAllBtn.disabled = true;
+          }
+        } : undefined;
+
+        exList = buildExampleList(exampleItems, onApplyItem);
+        li.appendChild(exList);
+
+        if (applyAllBtn) {
+          applyAllBtn.addEventListener("click", () => {
+            applySuggestion(sugObj);
+            applyAllBtn!.textContent = "Applied";
+            applyAllBtn!.disabled = true;
+            exList?.querySelectorAll<HTMLButtonElement>("[data-item-add]").forEach((b) => {
+              b.textContent = "Added";
+              b.disabled = true;
+            });
+          });
+        }
+      }
+
+      sugList.appendChild(li);
+    };
+
+    // Render LLM-generated suggestions.
+    for (const sug of result.suggestions ?? []) {
+      appendSugCard(sug.section, sug.section_label, sug.suggestion, sug.example_items);
     }
+
+    // Inject deterministic fallback advisory cards for any weak/missing sections
+    // that the LLM didn't generate a suggestion for. The strength checker knows
+    // exactly which sections are light — the LLM may just have skipped them.
+    const coveredSections = new Set((result.suggestions ?? []).map((s) => s.section));
+    const clientName = currentDoc.client_name || "this client";
+    const FALLBACK_GUIDANCE: Partial<Record<number, string>> = {
+      2: "Add at least 5 specific words or phrases to the Banned Words section to enable deterministic vocabulary checks.",
+      3: "Add at least 2 explicit rules about sentence structure, length, or rhythm to the Cadence Rules section.",
+      4: `Pull 2–3 real on-brand captions or headlines from ${clientName}'s published content and paste them into Voice-on Examples. Actual published copy is far more reliable than describing the voice in prose.`,
+      5: "Add 2–3 examples of copy that sounds wrong for this brand, each with a short note on why it misses the mark. Voice-off examples are the strongest way to anchor off-brand tone for the scoring LLM.",
+      7: "Add at least a preferred CTA phrase and one to avoid in the CTA Rules section to give the LLM an anchor for ask-tone.",
+      8: "Add industry-specific term swaps — words where one version is correct and another isn't — to the Terminology section.",
+      10: `Pull 5+ real published captions, headlines, or posts from ${clientName}'s feed and add them to the Examples Gallery. Gallery examples carry 2 of the 10 strength points — the single biggest contributor to the score after banned words and voice-on examples.`,
+    };
+    for (const s of result.strength.sections) {
+      if (s.status === "present") continue;
+      if (coveredSections.has(s.section)) continue;
+      const guidance = FALLBACK_GUIDANCE[s.section];
+      if (!guidance) continue;
+      appendSugCard(s.section, s.label, `${s.reason} ${guidance}`);
+    }
+
+    // Show or hide the "no suggestions" empty state.
+    const hasSuggestions = sugList.children.length > 0;
+    sugList.hidden = !hasSuggestions;
+    sugEmpty.hidden = hasSuggestions;
   }
 
   function applySuggestion(sug: ImportResult["suggestions"][number]): void {

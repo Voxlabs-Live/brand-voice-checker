@@ -14,6 +14,12 @@
 @import "./tokens.css";
 
 /* ── Resets ───────────────────────────────────────────── */
+
+/* Enforce the [hidden] attribute — class-level display rules (e.g. .btn,
+ * .picker__actions flex children) win the specificity battle over the UA
+ * stylesheet's bare [hidden] rule, so !important is required here. */
+[hidden] { display: none !important; }
+
 *, *::before, *::after {
   box-sizing: border-box;
 }
