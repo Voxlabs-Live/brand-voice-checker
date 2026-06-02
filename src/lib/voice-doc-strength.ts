@@ -230,7 +230,7 @@ export function computeDocStrength(doc: VoiceDoc): DocStrength {
         ? `${galleryCount} gallery examples — pairwise corpus is substantial.`
         : galleryCount > 0
           ? `Only ${galleryCount} gallery example${galleryCount === 1 ? "" : "s"}; recommend at least ${MIN_CONTENT.examples_gallery}.`
-          : "No gallery examples — pairwise scoring leans entirely on §4/§5.",
+          : "No gallery examples — pairwise scoring leans entirely on the voice-on and voice-off examples.",
     scoring_critical: true,
   });
 
@@ -271,9 +271,11 @@ export function computeDocStrength(doc: VoiceDoc): DocStrength {
 }
 
 function summarize(score: number, sections: SectionAssessment[]): string {
+  // Use the human-readable section labels here, never the internal "§N"
+  // markers — this string is shown to the user as the panel's hero summary.
   const missingCritical = sections
     .filter((s) => s.status === "missing" && s.scoring_critical)
-    .map((s) => `§${s.section}`);
+    .map((s) => s.label.toLowerCase());
   if (score >= 9) return "Strong voice doc — scoring is well-anchored.";
   if (score >= 7) {
     return missingCritical.length === 0

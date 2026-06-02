@@ -80,6 +80,13 @@
     inset: 0;
     opacity: 0;
     cursor: inherit;
+    /* Take the input out of the pointer path so EVERY click on the drop zone
+       lands on .upload__drop (or the hint) and is forwarded to input.click()
+       programmatically in index.astro. Relying on the browser to open the
+       native dialog from a click on this opacity:0 overlay is unreliable
+       across browsers; a programmatic .click() inside the user gesture is not.
+       Drag-and-drop is unaffected (handled on .upload__drop). */
+    pointer-events: none;
   }
 
   .upload__hint {

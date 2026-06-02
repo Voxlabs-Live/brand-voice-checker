@@ -30,7 +30,14 @@
   </div>
 </aside>
 
-<style>
+<!--
+  Styles are `is:global` on purpose: most of the panel's inner elements
+  (status pills, section rows, suggestion cards, example items) are created at
+  runtime by renderCritique() in index.astro via document.createElement, so they
+  never carry Astro's scoping data-attribute. Scoped rules would silently fail
+  to match them — which is exactly why these used to render unstyled.
+-->
+<style is:global>
   .critique {
     margin: 0 0 1.25rem;
     background: var(--surface-50);
@@ -180,20 +187,112 @@
     margin: 0 0 0.4rem;
     line-height: var(--leading-normal);
   }
+  /* Structured example items (replaces the old raw-JSON dump). */
   .critique__suggestion-examples {
-    margin: 0.3rem 0 0;
-    padding-left: 1rem;
-    color: var(--surface-700);
+    list-style: none;
+    margin: 0.5rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .critique__ex {
     font-size: var(--text-sm);
     line-height: var(--leading-normal);
+    color: var(--surface-800);
+    background: var(--surface-50);
+    border: 1px solid var(--surface-150);
+    border-radius: var(--radius);
+    padding: 0.45rem 0.6rem;
   }
-  .critique__suggestion-examples li {
-    background: transparent;
-    border: none;
-    padding: 0;
-    margin-bottom: 0.2rem;
-    list-style: disc;
+  /* plain quoted line — cadence / voice-on / gallery */
+  .critique__ex--quote {
+    font-style: italic;
+    color: var(--surface-700);
   }
+  .critique__ex--quote::before { content: "\201C"; }
+  .critique__ex--quote::after { content: "\201D"; }
+
+  /* voice-off — the off-brand line plus why it fails */
+  .critique__ex--voiceoff {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .critique__ex-quote {
+    font-style: italic;
+    color: var(--surface-900);
+  }
+  .critique__ex-quote::before { content: "\201C"; }
+  .critique__ex-quote::after { content: "\201D"; }
+  .critique__ex-why {
+    font-size: var(--text-xs);
+    line-height: var(--leading-snug);
+    color: var(--surface-700);
+  }
+  .critique__ex-why::before {
+    content: "Why it's off — ";
+    font-weight: var(--font-weight-semibold);
+    color: var(--accent-700);
+  }
+
+  /* terminology / banned-word */
+  .critique__ex--term strong { color: var(--surface-900); }
+  .critique__ex-strike {
+    text-decoration: line-through;
+    color: var(--surface-500);
+  }
+  .critique__ex-note { color: var(--surface-600); }
+
+  /* CTA rules — preferred / avoid phrase chips + tone */
+  .critique__ex--cta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  .critique__cta-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .critique__cta-label {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--surface-600);
+    margin-right: 0.1rem;
+  }
+  .critique__chip {
+    display: inline-block;
+    padding: 0.1rem 0.55rem;
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    background: var(--surface-200);
+    color: var(--surface-800);
+  }
+  .critique__chip--ok {
+    background: oklch(from var(--surface-900) l c h / 0.1);
+    color: var(--surface-900);
+  }
+  .critique__chip--bad {
+    background: oklch(from var(--accent-200) l c h / 0.5);
+    color: var(--accent-800);
+    text-decoration: line-through;
+  }
+  .critique__cta-tone {
+    font-size: var(--text-xs);
+    color: var(--surface-600);
+    font-style: italic;
+  }
+
+  /* section-status row: bold name over a muted reason */
+  .critique__section-name {
+    font-weight: var(--font-weight-semibold);
+    color: var(--surface-900);
+  }
+  .critique__section-reason { color: var(--surface-600); }
 
   .critique__empty {
     font-style: italic;

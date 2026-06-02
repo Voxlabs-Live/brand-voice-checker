@@ -8,7 +8,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "test:provenance": "node test/import-provenance.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.95.2",

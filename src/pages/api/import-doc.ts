@@ -22,8 +22,10 @@ export interface ImportResult {
   doc: VoiceDoc;
   /** Deterministic strength score (computed by the server, never LLM). */
   strength: DocStrength;
-  /** Sections the deterministic pass extracted at least partial content for. */
-  deterministic_sections: number[];
+  /** Sections whose content is genuinely STATED in the user's doc — either
+   *  regex-extracted (always verbatim) or LLM-extracted and self-reported as
+   *  "stated". Wording/heading-agnostic. Drives the "from your doc" tag. */
+  stated_sections: number[];
   /** Detection rate from the section detector (0–10). */
   sections_detected: number;
   /** LLM-generated suggestions for missing/weak sections. */
@@ -42,6 +44,9 @@ export interface ImportResult {
 
 interface LlmCritique {
   extracted_fields: Partial<VoiceDoc> & { client_name?: string; vertical?: string };
+  /** Per-field origin the LLM self-reports: "stated" (verbatim in the doc, any
+   *  wording) or "inferred" (worked out from signal). Drives the origin tag. */
+  extraction_provenance?: Partial<Record<string, "stated" | "inferred">>;
   suggestions: ImportResult["suggestions"];
 }
 
@@ -154,10 +159,30 @@ ${missingFromExtraction.length === 0 ? "(none — regex extracted all sections)"
   // Step 8 — compute strength score DETERMINISTICALLY.
   const strength = computeDocStrength(mergedDoc);
 
+  // Sections whose content is genuinely stated in the doc. Regex-extracted
+  // sections are always verbatim; LLM-extracted sections count as "stated"
+  // unless the LLM explicitly flagged them "inferred" (e.g. punctuation it
+  // guessed from tone). This is wording/heading-agnostic — it's the LLM's
+  // semantic judgement, not a regex alias match — so it holds for any client's
+  // doc, not just ones whose headings match our alias list.
+  const FIELD_SECTION: Record<string, number> = {
+    tone_words: 1, banned_words: 2, cadence_rules: 3, voice_on_examples: 4,
+    voice_off_examples: 5, punctuation: 6, cta: 7, required_terms: 8,
+    exceptions: 9, examples_gallery: 10,
+  };
+  const statedSections = new Set<number>(fieldResult.filled);
+  const provenance = critique.extraction_provenance ?? {};
+  const ef = critique.extracted_fields as Record<string, unknown>;
+  for (const [field, section] of Object.entries(FIELD_SECTION)) {
+    if (ef[field] != null && provenance[field] !== "inferred") {
+      statedSections.add(section);
+    }
+  }
+
   const result: ImportResult = {
     doc: mergedDoc,
     strength,
-    deterministic_sections: Array.from(fieldResult.filled).sort((a, b) => a - b),
+    stated_sections: Array.from(statedSections).sort((a, b) => a - b),
     sections_detected: sectionMap.foundCount,
     suggestions: Array.isArray(critique.suggestions) ? critique.suggestions : [],
     filename: extract.filename,

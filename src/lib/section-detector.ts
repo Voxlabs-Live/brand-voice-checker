@@ -17,14 +17,14 @@
  * the detector normalizes headings before matching.
  */
 const SECTION_ALIASES: Record<number, string[]> = {
-  1: ["three tone words", "tone words", "voice tone", "tone"],
-  2: ["banned words and phrases", "banned words", "banned phrases", "do not use", "donts", "avoid"],
+  1: ["three tone words", "tone words", "voice tone", "tone", "how we sound", "how we talk", "how it sounds", "voice and tone"],
+  2: ["banned words and phrases", "banned words", "banned phrases", "do not use", "donts", "avoid", "words we dont use", "words we avoid", "words to avoid", "words we never use", "never use"],
   3: ["required cadence rules", "cadence rules", "cadence", "rhythm", "sentence structure"],
   4: ["voice-on examples", "voice on examples", "voice-on", "on-brand examples", "voice on"],
   5: ["voice-off examples", "voice off examples", "voice-off", "off-brand examples", "voice off"],
   6: ["punctuation rules", "punctuation"],
   7: ["cta voice rules", "cta rules", "cta", "calls to action", "call to action"],
-  8: ["industry-specific terminology", "industry terminology", "terminology", "specific terms", "vocabulary"],
+  8: ["industry-specific terminology", "industry terminology", "terminology", "specific terms", "vocabulary", "what we call things", "what we call them", "what we call", "naming", "preferred terms"],
   9: ["client-specific exceptions", "exceptions", "client exceptions"],
   10: ["examples gallery", "gallery", "examples", "sample posts", "example posts"],
 };
@@ -126,7 +126,7 @@ function findHeadings(text: string): Heading[] {
 function normalize(s: string): string {
   return s
     .toLowerCase()
-    .replace(/[.:#*_~`"'()\[\]{}]/g, "")
+    .replace(/[.:#*_~`"'“”‘’()\[\]{}]/g, "")
     .replace(/\s+/g, " ")
     .replace(/§/g, "")
     .trim();

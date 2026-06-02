@@ -70,6 +70,18 @@ OUTPUT FORMAT — strict JSON, no markdown fences, no prose before or after:
     "client_name"?: string,
     "vertical"?: string
   },
+  "extraction_provenance": {
+    "tone_words"?: "stated" | "inferred",
+    "banned_words"?: "stated" | "inferred",
+    "cadence_rules"?: "stated" | "inferred",
+    "voice_on_examples"?: "stated" | "inferred",
+    "voice_off_examples"?: "stated" | "inferred",
+    "punctuation"?: "stated" | "inferred",
+    "cta"?: "stated" | "inferred",
+    "required_terms"?: "stated" | "inferred",
+    "exceptions"?: "stated" | "inferred",
+    "examples_gallery"?: "stated" | "inferred"
+  },
   "suggestions": [
     {
       "section": number,
@@ -81,6 +93,11 @@ OUTPUT FORMAT — strict JSON, no markdown fences, no prose before or after:
 }
 
 For each "extracted_fields.*" key, set it to null if you have no content to add (so the import endpoint knows not to overwrite the deterministic extraction). Set the punctuation fields to sensible defaults (at_most_one / sparingly) only if you have a clear signal from the doc — otherwise null.
+
+For "extraction_provenance": for EVERY non-null field in extracted_fields, mark where its content actually came from:
+  - "stated"   — the content is literally present in the doc: the author wrote these exact words, phrases, or examples, even if under a differently-named heading ("How we sound", "Our vibe", "Words we'd never use"...), in a different order, or buried in prose. This is the normal case.
+  - "inferred" — you worked it out from indirect signals rather than the author stating it (e.g. setting a punctuation default because the tone reads "restrained"). Use this only when the content is NOT in the author's own words.
+Judge purely by whether the author actually said it — NOT by heading names or wording. The UI uses this to honestly tell the user "this came from your doc" vs "the AI worked this out," so getting it right matters more than the heading the author happened to use.
 
 For "suggestions": only include sections that are actually missing or weak. Order by importance. The user reviews and accepts these manually — never assume they'll be auto-applied.
 
@@ -120,6 +137,9 @@ EXAMPLE OUTPUT:
     "exceptions": null,
     "examples_gallery": null,
     "client_name": "Crescent Yoga"
+  },
+  "extraction_provenance": {
+    "tone_words": "stated"
   },
   "suggestions": [
     {

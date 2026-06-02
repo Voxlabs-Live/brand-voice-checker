@@ -140,11 +140,16 @@ function extractToneWords(text: string): string[] {
     .filter((l) => l && l.length < 40);
   if (bullets.length >= 2) return bullets.slice(0, 3);
 
-  // Inline fallback.
-  const firstLine = text.split(/\n/).find((l) => l.trim()) ?? "";
+  // Inline fallback. First strip a leading label like "Three words:", "Tone:"
+  // or "Voice:" so it isn't captured as the first tone word.
+  let firstLine = text.split(/\n/).find((l) => l.trim()) ?? "";
+  const colon = firstLine.indexOf(":");
+  if (colon > -1 && colon < 24 && /\b(?:words?|tone|voice)\b/i.test(firstLine.slice(0, colon))) {
+    firstLine = firstLine.slice(colon + 1);
+  }
   const inline = firstLine
     .split(/[,/·]| - | – /)
-    .map((s) => s.trim())
+    .map((s) => s.trim().replace(/[.;]+$/, ""))
     .filter((s) => s && s.length < 30 && s.length > 1);
   return inline.slice(0, 3);
 }
@@ -166,7 +171,7 @@ function extractBannedWords(text: string): BannedWord[] {
 
   // Pattern 2: bullet line "- word — reason"  OR  "- "word" — reason"
   for (const line of extractBulletLines(text)) {
-    const quoted = line.match(/^["']([^"']+)["']\s*(?:[—–-]\s*(.+))?$/);
+    const quoted = line.match(/^["'“”‘’]([^"'“”‘’]+)["'“”‘’]\s*(?:[—–-]\s*(.+))?$/);
     // ASCII hyphens require surrounding whitespace to separate word from reason;
     // unspaced `-` is treated as a compound-word character (e.g. `game-changer`).
     // Em/en dashes are unambiguous separators, so whitespace is optional.

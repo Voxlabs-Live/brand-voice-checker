@@ -219,17 +219,17 @@ export function renderDocToMarkdown(doc: VoiceDoc): string {
   lines.push("");
 
   lines.push("## 7. CTA voice rules");
-  if (doc.cta.preferred && doc.cta.preferred.length > 0) {
+  if (doc.cta?.preferred && doc.cta.preferred.length > 0) {
     lines.push(
       `- Preferred CTA phrases: ${doc.cta.preferred.map((p) => `"${p}"`).join(", ")}.`
     );
   }
-  if (doc.cta.banned && doc.cta.banned.length > 0) {
+  if (doc.cta?.banned && doc.cta.banned.length > 0) {
     lines.push(
       `- Banned CTA phrases: ${doc.cta.banned.map((p) => `"${p}"`).join(", ")}.`
     );
   }
-  if (doc.cta.tone) lines.push(`- Tone of the ask: ${doc.cta.tone}.`);
+  if (doc.cta?.tone) lines.push(`- Tone of the ask: ${doc.cta.tone}.`);
   lines.push("");
 
   lines.push("## 8. Industry-specific terminology");
