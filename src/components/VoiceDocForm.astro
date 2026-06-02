@@ -25,6 +25,9 @@
       <span class="strength__score" data-field="strength_score">—</span>
       <span class="strength__label">/10 doc strength</span>
       <span class="strength__summary" data-field="strength_summary"></span>
+      <button type="button" class="strength__breakdown-btn" data-strength-breakdown>
+        See section breakdown →
+      </button>
     </div>
   </header>
 
@@ -226,6 +229,13 @@
     background: var(--surface-50);
     border: 1px solid var(--surface-200);
     border-radius: var(--radius);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-smooth),
+                border-color var(--duration-fast) var(--ease-smooth);
+  }
+  .voice-form__strength:hover {
+    background: var(--surface-100);
+    border-color: var(--surface-300);
   }
   .strength__score {
     font-family: var(--font-display);
@@ -250,6 +260,28 @@
     font-size: var(--text-sm);
     color: var(--surface-700);
     margin-top: 0.3rem;
+  }
+  /* "See section breakdown →" / "Hide breakdown ↑" toggle link. Sits on its
+   * own row below the summary sentence, left-aligned. No button chrome —
+   * styled as a muted underlined text link. The whole strength box is the
+   * click target; this is the label that tells the user what clicking does. */
+  .strength__breakdown-btn {
+    flex-basis: 100%;
+    text-align: left;
+    padding: 0;
+    margin-top: 0.2rem;
+    background: none;
+    border: none;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    color: var(--surface-500);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    transition: color var(--duration-fast) var(--ease-smooth);
+  }
+  .voice-form__strength:hover .strength__breakdown-btn {
+    color: var(--surface-800);
   }
 
   /* NOTE: .form-row / .form-list / .input--small / .row-remove styles live

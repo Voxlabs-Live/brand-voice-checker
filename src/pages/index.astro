@@ -454,6 +454,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   const strengthBox = formRoot.querySelector('[data-field="strength_meter"]') as HTMLElement;
   const strengthScore = formRoot.querySelector('[data-field="strength_score"]') as HTMLElement;
   const strengthSummary = formRoot.querySelector('[data-field="strength_summary"]') as HTMLElement;
+  const strengthBreakdownBtn = formRoot.querySelector('[data-strength-breakdown]') as HTMLButtonElement;
   const doneEditingBtn = editingView.querySelector('[data-editing-done]') as HTMLButtonElement;
   const cancelEditingBtn = editingView.querySelector('[data-editing-cancel]') as HTMLButtonElement;
   const uploadDetails = editingView.querySelector('[data-upload]') as HTMLDetailsElement | null;
@@ -1105,6 +1106,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     form.setDoc(result.doc);
     updateStrengthMeter();
     renderCritique(result);
+    syncBreakdownBtn(false);
     // Persist suggestions so the critique panel survives page refresh.
     // We store suggestions + stated_sections; strength is always recomputed
     // fresh from the current doc state so it stays accurate after edits.
@@ -1144,12 +1146,55 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
         suggestions: stored.suggestions,
         stated_sections: stored.stated_sections,
       });
+      syncBreakdownBtn(false);
     } else {
       // No stored critique — ensure any previously-rendered panel is hidden
       // so we don't show another doc's suggestions by mistake.
       critiquePanel.hidden = true;
+      syncBreakdownBtn(true);
     }
   }
+
+  /**
+   * Always shows the critique panel — recomputes strength fresh and uses
+   * stored import suggestions if available. Used by the strength box toggle
+   * so the panel opens even for docs that were never imported.
+   */
+  function showStrengthPanel(doc: VoiceDoc): void {
+    if (!critiquePanel) return;
+    const stored = loadImportCritique(doc.id);
+    renderCritique({
+      doc,
+      filename: "",
+      format: "text",
+      cached: false,
+      sections_detected: 0,
+      strength: computeDocStrength(doc),
+      suggestions: stored?.suggestions ?? [],
+      stated_sections: stored?.stated_sections ?? [],
+    });
+  }
+
+  /** Keep the breakdown button label in sync with panel visibility. */
+  function syncBreakdownBtn(panelHidden: boolean): void {
+    if (!strengthBreakdownBtn) return;
+    strengthBreakdownBtn.textContent = panelHidden
+      ? "See section breakdown →"
+      : "Hide breakdown ↑";
+  }
+
+  // ─── Strength box click — toggle the critique panel ──────────────────
+  strengthBox.addEventListener("click", () => {
+    if (!critiquePanel) return;
+    if (critiquePanel.hidden) {
+      showStrengthPanel(currentDoc);
+      syncBreakdownBtn(false);
+      critiquePanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      critiquePanel.hidden = true;
+      syncBreakdownBtn(true);
+    }
+  });
 
   const SECTION_LABELS: Record<number, string> = {
     1: "Tone words",
@@ -1508,6 +1553,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   if (critiqueCloseBtn && critiquePanel) {
     critiqueCloseBtn.addEventListener("click", () => {
       critiquePanel.hidden = true;
+      syncBreakdownBtn(true);
       // Clear persisted suggestions — the user has seen and dismissed the panel.
       clearImportCritique(currentDoc.id);
     });
