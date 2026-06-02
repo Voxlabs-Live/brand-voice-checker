@@ -136,6 +136,19 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   </section>
 
   <RateLimitWall repoUrl={REPO_URL} />
+
+  <!-- Confirmation modal — replaces the native confirm() for destructive actions. -->
+  <div class="confirm" data-confirm-modal hidden>
+    <div class="confirm__backdrop" data-confirm-cancel></div>
+    <div class="confirm__card" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+      <h3 class="confirm__title" id="confirm-title" data-confirm-title>Are you sure?</h3>
+      <p class="confirm__body" id="confirm-body" data-confirm-body></p>
+      <div class="confirm__actions">
+        <button type="button" class="btn btn--ghost btn--small" data-confirm-cancel>Cancel</button>
+        <button type="button" class="btn btn--small confirm__danger" data-confirm-ok>Confirm</button>
+      </div>
+    </div>
+  </div>
 </ToolLayout>
 
 <style>
@@ -362,6 +375,68 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     white-space: nowrap;
     border: 0;
   }
+
+  /* ─── Confirmation modal ─────────────────────────────────────────── */
+  .confirm {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+  }
+  .confirm__backdrop {
+    position: absolute;
+    inset: 0;
+    background: oklch(0.18 0.012 60 / 0.45);
+    backdrop-filter: blur(2px);
+    animation: confirm-fade var(--duration-base) var(--ease-smooth);
+  }
+  .confirm__card {
+    position: relative;
+    width: 100%;
+    max-width: 26rem;
+    background: var(--surface-0);
+    border: 1px solid var(--surface-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    padding: 1.5rem 1.6rem 1.35rem;
+    animation: confirm-pop var(--duration-base) var(--ease-spring);
+  }
+  .confirm__title {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    line-height: var(--leading-snug);
+    color: var(--surface-900);
+    margin: 0 0 0.55rem;
+  }
+  .confirm__body {
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+    color: var(--surface-700);
+    margin: 0 0 1.35rem;
+  }
+  .confirm__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+  }
+  /* On-brand destructive action — deeper ember than the primary CTA. */
+  .confirm__danger {
+    background: var(--accent-600);
+    color: var(--surface-0);
+    box-shadow: var(--shadow-cta);
+  }
+  .confirm__danger:hover { background: var(--accent-700); color: var(--surface-0); }
+
+  @keyframes confirm-fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes confirm-pop {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .confirm__backdrop, .confirm__card { animation: none; }
+  }
 </style>
 
 <script>
@@ -492,7 +567,6 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
         docHasContent(doc)
       ) {
         e.preventDefault();
-        e.returnValue = "";
       }
     }
   });
@@ -684,12 +758,14 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     if (uploadDetails) uploadDetails.open = false;
     exitImportOnlyMode();
     setMode("editing");
+    maybeRestoreCritique(currentDoc); // hide any prior doc's critique panel
     setPickerStatus("New blank doc — add a client name and it saves automatically as you go.", "warn");
   });
   summaryImportBtn.addEventListener("click", () => {
     currentDoc = emptyVoiceDoc();
     form.setDoc(currentDoc);
     editingBaselineId = "";
+    maybeRestoreCritique(currentDoc); // hide any prior doc's critique panel
     enterImportOnlyMode();
   });
 
@@ -752,6 +828,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     form.setDoc(blank);
     pickerSelect.value = "";
     updateStrengthMeter();
+    maybeRestoreCritique(blank); // hide any prior doc's critique panel
     setPickerStatus("New blank doc — add a client name and it saves automatically as you go.", "warn");
   });
   pickerDup.addEventListener("click", () => {
@@ -770,7 +847,50 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       setPickerStatus(`Duplicated as "${copy.client_name}".`, "saved");
     }
   });
-  pickerDel.addEventListener("click", () => {
+  // ─── Confirmation modal (in-app replacement for native confirm()) ────
+  const confirmEl = document.querySelector("[data-confirm-modal]") as HTMLElement | null;
+  const confirmTitle = confirmEl?.querySelector("[data-confirm-title]") as HTMLElement | null;
+  const confirmBody = confirmEl?.querySelector("[data-confirm-body]") as HTMLElement | null;
+  const confirmOk = confirmEl?.querySelector("[data-confirm-ok]") as HTMLButtonElement | null;
+  const confirmCancelBtn = confirmEl?.querySelector("button[data-confirm-cancel]") as HTMLButtonElement | null;
+  let confirmResolve: ((v: boolean) => void) | null = null;
+  let confirmLastFocus: HTMLElement | null = null;
+
+  function closeConfirm(result: boolean): void {
+    if (!confirmEl) return;
+    confirmEl.hidden = true;
+    const resolve = confirmResolve;
+    confirmResolve = null;
+    confirmLastFocus?.focus?.();
+    resolve?.(result);
+  }
+
+  /** Promise-based confirm. Resolves true on Confirm, false on Cancel/Escape/backdrop. */
+  function openConfirm(opts: { title?: string; body: string; confirmText?: string }): Promise<boolean> {
+    if (!confirmEl || !confirmTitle || !confirmBody || !confirmOk) {
+      return Promise.resolve(window.confirm(opts.body)); // graceful fallback
+    }
+    confirmTitle.textContent = opts.title ?? "Are you sure?";
+    confirmBody.textContent = opts.body; // textContent => XSS-safe with user-supplied names
+    confirmOk.textContent = opts.confirmText ?? "Confirm";
+    confirmLastFocus = document.activeElement as HTMLElement;
+    confirmEl.hidden = false;
+    confirmCancelBtn?.focus(); // default focus on the safe action
+    return new Promise((resolve) => { confirmResolve = resolve; });
+  }
+
+  confirmOk?.addEventListener("click", () => closeConfirm(true));
+  confirmEl?.querySelectorAll("[data-confirm-cancel]").forEach((el) =>
+    el.addEventListener("click", () => closeConfirm(false))
+  );
+  document.addEventListener("keydown", (e) => {
+    if (confirmEl && !confirmEl.hidden && e.key === "Escape") {
+      e.preventDefault();
+      closeConfirm(false);
+    }
+  });
+
+  pickerDel.addEventListener("click", async () => {
     const id = pickerSelect.value;
     if (!id) {
       setPickerStatus("Select a doc to delete.", "warn");
@@ -785,7 +905,12 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     }
     const doc = getDoc(id);
     if (!doc) return;
-    if (!confirm(`Delete "${doc.client_name}"? This can't be undone.`)) return;
+    const ok = await openConfirm({
+      title: "Delete this voice doc?",
+      body: `“${doc.client_name}” and its saved suggestions will be permanently removed. This can't be undone.`,
+      confirmText: "Delete",
+    });
+    if (!ok) return;
     deleteDoc(id);
     clearImportCritique(id); // clean up any stored suggestions for the deleted doc
     populatePickerSelect();
@@ -801,6 +926,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       form.setDoc(currentDoc);
     }
     updateStrengthMeter();
+    maybeRestoreCritique(currentDoc); // swap/hide critique panel for the new current doc
     setPickerStatus("Deleted.", "saved");
   });
   // Auto-save replaces the manual "Save changes" button — hide it and let the
@@ -926,6 +1052,11 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
   function scheduleAutosave(): void {
     if (mode !== "editing") return;
     const doc = form.readDoc();
+    if (doc.id.startsWith(SAMPLE_ID_PREFIX)) {
+      // Samples are read-only reference demos — never overwrite the seed.
+      setPickerStatus("Samples are read-only — use Duplicate to make an editable copy.", "warn");
+      return;
+    }
     if (!doc.client_name.trim()) {
       if (docHasContent(doc)) setSaveStatus("needs-name");
       return;
@@ -942,6 +1073,11 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     window.clearTimeout(autosaveTimer);
     if (mode !== "editing") return;
     const doc = form.readDoc();
+    if (doc.id.startsWith(SAMPLE_ID_PREFIX)) {
+      // Samples are read-only reference demos — never overwrite the seed.
+      setPickerStatus("Samples are read-only — use Duplicate to make an editable copy.", "warn");
+      return;
+    }
     if (!doc.client_name.trim()) {
       if (docHasContent(doc)) setSaveStatus("needs-name");
       return;
@@ -1233,7 +1369,8 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
    */
   function buildExampleList(
     items: Array<string | object>,
-    onApplyItem?: (item: string | object) => void
+    onApplyItem?: (item: string | object) => void,
+    isApplied?: (item: string | object) => boolean
   ): HTMLUListElement {
     const wrap = document.createElement("ul");
     wrap.className = "critique__suggestion-examples";
@@ -1327,12 +1464,19 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
         addBtn.type = "button";
         addBtn.className = "btn btn--ghost critique__ex-add";
         addBtn.dataset.itemAdd = "";
-        addBtn.textContent = "Add";
-        addBtn.addEventListener("click", () => {
-          onApplyItem(item);
+        if (isApplied?.(item)) {
+          // Already in the doc (e.g. panel rebuilt after re-opening the editor).
+          // Show it as done and don't let it be re-applied into a duplicate.
           addBtn.textContent = "Added";
           addBtn.disabled = true;
-        });
+        } else {
+          addBtn.textContent = "Add";
+          addBtn.addEventListener("click", () => {
+            onApplyItem(item);
+            addBtn.textContent = "Added";
+            addBtn.disabled = true;
+          });
+        }
         li.appendChild(addBtn);
       }
       wrap.appendChild(li);
@@ -1429,31 +1573,44 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
         const sugObj = { section: sectionNum, section_label: sectionLabel,
           suggestion: bodyText, example_items: exampleItems };
 
+        // An item counts as already-applied if its content is in the doc the
+        // panel is describing (result.doc) — so a rebuilt panel reflects prior
+        // applies instead of resetting every button to "Add".
+        const isApplied = hasAppliable
+          ? (item: string | object) => itemAlreadyInDoc(sectionNum, item, result.doc)
+          : undefined;
+
         // Granular per-item Apply — tracks how many items have been applied
-        // individually so the Apply all button can auto-disable when all are done.
-        let appliedItemCount = 0;
+        // (seeded with those already in the doc) so the Apply all button can
+        // auto-disable when all are done.
+        let appliedItemCount = isApplied ? exampleItems.filter(isApplied).length : 0;
         const onApplyItem = hasAppliable ? (item: string | object) => {
           applySuggestion({ ...sugObj, example_items: [item] });
           appliedItemCount++;
-          if (applyAllBtn && appliedItemCount === exampleItems.length) {
+          if (applyAllBtn && appliedItemCount >= exampleItems.length) {
             applyAllBtn.textContent = "Applied";
             applyAllBtn.disabled = true;
           }
         } : undefined;
 
-        exList = buildExampleList(exampleItems, onApplyItem);
+        exList = buildExampleList(exampleItems, onApplyItem, isApplied);
         li.appendChild(exList);
 
         if (applyAllBtn) {
-          applyAllBtn.addEventListener("click", () => {
-            applySuggestion(sugObj);
-            applyAllBtn!.textContent = "Applied";
-            applyAllBtn!.disabled = true;
-            exList?.querySelectorAll<HTMLButtonElement>("[data-item-add]").forEach((b) => {
-              b.textContent = "Added";
-              b.disabled = true;
+          if (appliedItemCount >= exampleItems.length) {
+            applyAllBtn.textContent = "Applied";
+            applyAllBtn.disabled = true;
+          } else {
+            applyAllBtn.addEventListener("click", () => {
+              applySuggestion(sugObj);
+              applyAllBtn!.textContent = "Applied";
+              applyAllBtn!.disabled = true;
+              exList?.querySelectorAll<HTMLButtonElement>("[data-item-add]").forEach((b) => {
+                b.textContent = "Added";
+                b.disabled = true;
+              });
             });
-          });
+          }
         }
       }
 
@@ -1493,12 +1650,65 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     sugEmpty.hidden = hasSuggestions;
   }
 
+  /** Case/space-insensitive string key for matching suggestion items. */
+  function normItem(s: unknown): string {
+    return String(s ?? "").trim().toLowerCase();
+  }
+
+  /**
+   * Is this suggestion item already present in the doc? Used both to dedupe
+   * inside applySuggestion and to render an already-applied item's button as
+   * "Added" when the critique panel is rebuilt (e.g. after re-opening the
+   * editor). Matching mirrors exactly what applySuggestion writes per section.
+   */
+  function itemAlreadyInDoc(section: number, item: string | object, doc: VoiceDoc): boolean {
+    switch (section) {
+      case 2: {
+        const word = typeof item === "string" ? item : (item as any).word;
+        return !!word && doc.banned_words.some((b) => normItem(b.word) === normItem(word));
+      }
+      case 3:
+        return typeof item === "string" && doc.cadence_rules.some((r) => normItem(r) === normItem(item));
+      case 4:
+        return typeof item === "string" && doc.voice_on_examples.some((r) => normItem(r) === normItem(item));
+      case 5: {
+        const ex = typeof item === "object" && item ? (item as any).example : undefined;
+        return !!ex && doc.voice_off_examples.some((v) => normItem(v.example) === normItem(ex));
+      }
+      case 7: {
+        if (typeof item !== "object" || !item) return false;
+        const c = item as { preferred?: unknown; banned?: unknown; tone?: string };
+        const toArr = (v: unknown): string[] =>
+          Array.isArray(v) ? (v as string[]) : typeof v === "string" && v.trim() ? [v] : [];
+        const prefs = toArr(c.preferred);
+        const bans = toArr(c.banned);
+        const hasTone = typeof c.tone === "string" && c.tone.trim().length > 0;
+        if (!prefs.length && !bans.length && !hasTone) return false;
+        const allIn = (incoming: string[], existing: string[]) =>
+          incoming.every((p) => existing.some((x) => normItem(x) === normItem(p)));
+        return allIn(prefs, doc.cta.preferred ?? []) &&
+          allIn(bans, doc.cta.banned ?? []) &&
+          (!hasTone || normItem(doc.cta.tone) === normItem(c.tone));
+      }
+      case 8: {
+        if (typeof item !== "object" || !item) return false;
+        const t = item as { use?: string; not?: string };
+        return doc.required_terms.some((r) => normItem(r.use) === normItem(t.use) && normItem(r.not) === normItem(t.not));
+      }
+      case 10:
+        return typeof item === "string" && doc.examples_gallery.some((r) => normItem(r) === normItem(item));
+      default:
+        return false;
+    }
+  }
+
   function applySuggestion(sug: ImportResult["suggestions"][number]): void {
     const doc = form.readDoc();
     const items = sug.example_items ?? [];
     switch (sug.section) {
       case 2:
         for (const it of items) {
+          if (itemAlreadyInDoc(2, it, doc)) continue;
           if (typeof it === "string") doc.banned_words.push({ word: it });
           else if (typeof it === "object" && "word" in (it as any))
             doc.banned_words.push(it as { word: string; reason?: string });
@@ -1506,17 +1716,17 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
         break;
       case 3:
         for (const it of items) {
-          if (typeof it === "string") doc.cadence_rules.push(it);
+          if (typeof it === "string" && !itemAlreadyInDoc(3, it, doc)) doc.cadence_rules.push(it);
         }
         break;
       case 4:
         for (const it of items) {
-          if (typeof it === "string") doc.voice_on_examples.push(it);
+          if (typeof it === "string" && !itemAlreadyInDoc(4, it, doc)) doc.voice_on_examples.push(it);
         }
         break;
       case 5:
         for (const it of items) {
-          if (typeof it === "object" && "example" in (it as any)) {
+          if (typeof it === "object" && "example" in (it as any) && !itemAlreadyInDoc(5, it, doc)) {
             doc.voice_off_examples.push(it as { example: string; why_wrong: string });
           }
         }
@@ -1529,21 +1739,33 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
             Array.isArray(v) ? (v as string[]) : typeof v === "string" && v.trim() ? [v] : [];
           const pref = strToArr(c.preferred);
           const banned = strToArr(c.banned);
-          if (pref.length) doc.cta.preferred = pref;
-          if (banned.length) doc.cta.banned = banned;
+          // Append (don't overwrite): suggestions arrive as separate items
+          // applied one at a time, and the doc may already hold imported
+          // CTAs. Dedupe case-insensitively so re-applying can't duplicate.
+          const mergeUnique = (existing: string[], incoming: string[]): string[] => {
+            const seen = new Set(existing.map((s) => s.trim().toLowerCase()));
+            const out = [...existing];
+            for (const v of incoming) {
+              const key = v.trim().toLowerCase();
+              if (key && !seen.has(key)) { seen.add(key); out.push(v); }
+            }
+            return out;
+          };
+          if (pref.length) doc.cta.preferred = mergeUnique(doc.cta.preferred ?? [], pref);
+          if (banned.length) doc.cta.banned = mergeUnique(doc.cta.banned ?? [], banned);
           if (typeof c.tone === "string") doc.cta.tone = c.tone;
         }
         break;
       case 8:
         for (const it of items) {
-          if (typeof it === "object" && "use" in (it as any) && "not" in (it as any)) {
+          if (typeof it === "object" && "use" in (it as any) && "not" in (it as any) && !itemAlreadyInDoc(8, it, doc)) {
             doc.required_terms.push(it as { use: string; not: string; note?: string });
           }
         }
         break;
       case 10:
         for (const it of items) {
-          if (typeof it === "string") doc.examples_gallery.push(it);
+          if (typeof it === "string" && !itemAlreadyInDoc(10, it, doc)) doc.examples_gallery.push(it);
         }
         break;
     }

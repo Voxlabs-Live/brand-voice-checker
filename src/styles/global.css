@@ -365,6 +365,22 @@ input.input:focus {
   gap: 0.5rem;
   min-width: 0;
 }
+/* Caption above the why_wrong input so a filled value isn't mistaken for a
+   second, separate example (the placeholder that labels it disappears once
+   the field is populated). */
+.vf-why {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.vf-why__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--surface-600);
+}
 
 /* Per-section grid overrides — each repeating list has its own column layout
    matched to the field shape. */

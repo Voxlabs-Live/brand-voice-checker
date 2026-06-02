@@ -25,7 +25,7 @@ export interface StoredCritique {
     section: number;
     section_label: string;
     suggestion: string;
-    example_items?: Array<unknown>;
+    example_items?: Array<string | object>;
   }>;
   /** Section numbers whose content was literally stated in the uploaded doc.
    *  Preserved so the "from your doc" / "we filled this in" origin badges

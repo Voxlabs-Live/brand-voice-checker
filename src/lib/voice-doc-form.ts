@@ -71,30 +71,36 @@ export function mountForm(root: HTMLElement): FormHandle {
 
   function setDoc(doc: VoiceDoc): void {
     currentId = doc.id;
-    setInput(root, "client_name", doc.client_name);
+    // Defensive against partial/legacy/tampered docs missing fields: every list
+    // and nested object is coalesced so a missing field renders empty instead of
+    // throwing ("items is not iterable") and wedging the form.
+    const tone = doc.tone_words ?? [];
+    const punct = doc.punctuation ?? ({} as VoiceDoc["punctuation"]);
+    const cta = doc.cta ?? ({} as VoiceDoc["cta"]);
+    setInput(root, "client_name", doc.client_name ?? "");
     setInput(root, "vertical", doc.vertical ?? "");
 
-    setInput(root, "tone_0", doc.tone_words[0] ?? "");
-    setInput(root, "tone_1", doc.tone_words[1] ?? "");
-    setInput(root, "tone_2", doc.tone_words[2] ?? "");
+    setInput(root, "tone_0", tone[0] ?? "");
+    setInput(root, "tone_1", tone[1] ?? "");
+    setInput(root, "tone_2", tone[2] ?? "");
 
-    renderBannedWords(root, doc.banned_words);
-    renderTextList(root, "cadence_rules", doc.cadence_rules);
-    renderTextList(root, "voice_on_examples", doc.voice_on_examples);
-    renderVoiceOff(root, doc.voice_off_examples);
+    renderBannedWords(root, doc.banned_words ?? []);
+    renderTextList(root, "cadence_rules", doc.cadence_rules ?? []);
+    renderTextList(root, "voice_on_examples", doc.voice_on_examples ?? []);
+    renderVoiceOff(root, doc.voice_off_examples ?? []);
 
-    setRadio(root, "exclamation", doc.punctuation.exclamation);
-    setRadio(root, "emoji", doc.punctuation.emoji);
-    setInput(root, "em_dash", doc.punctuation.em_dash ?? "");
-    setInput(root, "ellipsis", doc.punctuation.ellipsis ?? "");
+    setRadio(root, "exclamation", punct.exclamation ?? "at_most_one");
+    setRadio(root, "emoji", punct.emoji ?? "sparingly");
+    setInput(root, "em_dash", punct.em_dash ?? "");
+    setInput(root, "ellipsis", punct.ellipsis ?? "");
 
-    renderTextList(root, "cta_preferred", doc.cta.preferred ?? []);
-    renderTextList(root, "cta_banned", doc.cta.banned ?? []);
-    setInput(root, "cta_tone", doc.cta.tone ?? "");
+    renderTextList(root, "cta_preferred", cta.preferred ?? []);
+    renderTextList(root, "cta_banned", cta.banned ?? []);
+    setInput(root, "cta_tone", cta.tone ?? "");
 
-    renderRequiredTerms(root, doc.required_terms);
+    renderRequiredTerms(root, doc.required_terms ?? []);
     renderExceptions(root, doc.exceptions ?? []);
-    renderTextList(root, "examples_gallery", doc.examples_gallery);
+    renderTextList(root, "examples_gallery", doc.examples_gallery ?? []);
     // Programmatic value assignment doesn't fire input/change events, so we
     // notify the listener explicitly. Otherwise the strength meter and any
     // other dependents would stay stale until the user types into the form.
@@ -290,7 +296,10 @@ function addVoiceOffRow(container: HTMLElement, example: string, why_wrong: stri
   row.innerHTML = `
     <div class="form-row__main">
       <textarea class="input input--small" data-row-field="example" rows="2" placeholder="off-brand example">${escapeHtml(example)}</textarea>
-      <input class="input input--small" data-row-field="why_wrong" placeholder="why it's wrong">
+      <label class="vf-why">
+        <span class="vf-why__label">Why it's off</span>
+        <input class="input input--small" data-row-field="why_wrong" placeholder="why it's wrong">
+      </label>
     </div>
     ${trashButton("Remove example")}
   `;
