@@ -787,6 +787,7 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     if (!doc) return;
     if (!confirm(`Delete "${doc.client_name}"? This can't be undone.`)) return;
     deleteDoc(id);
+    clearImportCritique(id); // clean up any stored suggestions for the deleted doc
     populatePickerSelect();
     populateSummarySwitcher();
     // Reset to first remaining doc.
@@ -1367,9 +1368,11 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       reason.textContent = s.reason;
       text.appendChild(name);
       text.appendChild(reason);
-      // Only show an origin badge when something is present — "missing" sections
-      // came from neither source, so labeling them is noise.
-      if (s.status !== "missing") {
+      // Only show origin badges when we have real provenance data from an
+      // import (stated_sections non-empty). When the panel is opened via the
+      // strength toggle without import data, statedSet is empty and we'd show
+      // "WE FILLED THIS IN" on everything — which is false and confusing.
+      if (s.status !== "missing" && statedSet.size > 0) {
         const origin = document.createElement("span");
         origin.className = "critique__origin";
         const fromDoc = statedSet.has(s.section);
@@ -1554,8 +1557,10 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     critiqueCloseBtn.addEventListener("click", () => {
       critiquePanel.hidden = true;
       syncBreakdownBtn(true);
-      // Clear persisted suggestions — the user has seen and dismissed the panel.
-      clearImportCritique(currentDoc.id);
+      // Note: we deliberately do NOT clear the stored suggestions here.
+      // The × is "hide for now" — the user may want to return via the
+      // strength score toggle and apply more suggestions later.
+      // Stored suggestions are only replaced when the user re-imports.
     });
   }
 
