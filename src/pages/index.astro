@@ -373,6 +373,9 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     saveDoc,
     deleteDoc,
     duplicateDoc,
+    saveImportCritique,
+    loadImportCritique,
+    clearImportCritique,
     SAMPLE_ID_PREFIX,
   } from "../lib/voice-doc-storage";
   import {
@@ -660,6 +663,9 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     exitImportOnlyMode();
     setMode("editing");
     setPickerStatus("");
+    // Restore the critique panel for this doc if a previous import was saved,
+    // or hide any stale panel left over from a different session.
+    maybeRestoreCritique(currentDoc);
   });
   summarySwitcher.addEventListener("change", () => {
     const doc = getDoc(summarySwitcher.value);
@@ -734,6 +740,9 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
       form.setDoc(doc);
       updateStrengthMeter();
       setPickerStatus("");
+      // Show stored critique for the incoming doc, or hide the panel if none.
+      // Without this, switching docs left the previous import's panel visible.
+      maybeRestoreCritique(doc);
     }
   });
   pickerNew.addEventListener("click", () => {
@@ -1096,6 +1105,10 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     form.setDoc(result.doc);
     updateStrengthMeter();
     renderCritique(result);
+    // Persist suggestions so the critique panel survives page refresh.
+    // We store suggestions + stated_sections; strength is always recomputed
+    // fresh from the current doc state so it stays accurate after edits.
+    saveImportCritique(result.doc.id, result.suggestions ?? [], result.stated_sections ?? []);
     // Reveal the full editing view (form, picker, samples) now that there's
     // something to review — import-only mode is no longer appropriate.
     exitImportOnlyMode();
@@ -1109,6 +1122,33 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
     );
     if (uploadDetails) uploadDetails.open = false;
     if (critiquePanel) critiquePanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  /**
+   * If the given doc has stored import suggestions, rebuild the critique panel
+   * using those suggestions and a freshly-computed strength score. If not,
+   * hide the panel — prevents stale suggestions from a different doc leaking
+   * through when the user switches docs or re-enters editing mode.
+   */
+  function maybeRestoreCritique(doc: VoiceDoc): void {
+    if (!critiquePanel) return;
+    const stored = loadImportCritique(doc.id);
+    if (stored && stored.suggestions.length > 0) {
+      renderCritique({
+        doc,
+        filename: "",
+        format: "text",
+        cached: false,
+        sections_detected: 0,
+        strength: computeDocStrength(doc),
+        suggestions: stored.suggestions,
+        stated_sections: stored.stated_sections,
+      });
+    } else {
+      // No stored critique — ensure any previously-rendered panel is hidden
+      // so we don't show another doc's suggestions by mistake.
+      critiquePanel.hidden = true;
+    }
   }
 
   const SECTION_LABELS: Record<number, string> = {
@@ -1466,7 +1506,11 @@ const REPO_URL = "https://github.com/Voxlabs-Live/brand-voice-checker";
 
   const critiqueCloseBtn = editingView.querySelector('[data-critique-close]') as HTMLButtonElement | null;
   if (critiqueCloseBtn && critiquePanel) {
-    critiqueCloseBtn.addEventListener("click", () => (critiquePanel.hidden = true));
+    critiqueCloseBtn.addEventListener("click", () => {
+      critiquePanel.hidden = true;
+      // Clear persisted suggestions — the user has seen and dismissed the panel.
+      clearImportCritique(currentDoc.id);
+    });
   }
 
   // ─── Submit: score the draft against the current doc ────────────────

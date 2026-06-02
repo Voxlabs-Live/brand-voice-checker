@@ -13,6 +13,62 @@ import type { VoiceDoc } from "./voice-doc-schema";
 
 const STORAGE_KEY = "bvc:voice-docs:v1";
 const SEEDED_FLAG_KEY = "bvc:voice-docs:seeded:v1";
+const CRITIQUE_KEY = "bvc:import-critique:v1";
+
+/**
+ * The slice of an ImportResult we persist between sessions.
+ * Only suggestions + stated_sections — strength is always recomputed fresh
+ * from the current doc state so it stays accurate after edits.
+ */
+export interface StoredCritique {
+  suggestions: Array<{
+    section: number;
+    section_label: string;
+    suggestion: string;
+    example_items?: Array<unknown>;
+  }>;
+  /** Section numbers whose content was literally stated in the uploaded doc.
+   *  Preserved so the "from your doc" / "we filled this in" origin badges
+   *  render correctly when the critique panel is restored. */
+  stated_sections: number[];
+  imported_at: string;
+}
+
+function readAllCritiques(): Record<string, StoredCritique> {
+  if (!isBrowser()) return {};
+  const raw = window.localStorage.getItem(CRITIQUE_KEY);
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw) as Record<string, StoredCritique>;
+  } catch {
+    return {};
+  }
+}
+
+/** Persist the LLM suggestions for a doc after a successful import. */
+export function saveImportCritique(
+  docId: string,
+  suggestions: StoredCritique["suggestions"],
+  stated_sections: number[]
+): void {
+  if (!isBrowser()) return;
+  const all = readAllCritiques();
+  all[docId] = { suggestions, stated_sections, imported_at: new Date().toISOString() };
+  window.localStorage.setItem(CRITIQUE_KEY, JSON.stringify(all));
+}
+
+/** Return stored suggestions for a doc, or null if none are saved. */
+export function loadImportCritique(docId: string): StoredCritique | null {
+  return readAllCritiques()[docId] ?? null;
+}
+
+/** Remove stored suggestions when the user dismisses the critique panel. */
+export function clearImportCritique(docId: string): void {
+  if (!isBrowser()) return;
+  const all = readAllCritiques();
+  delete all[docId];
+  window.localStorage.setItem(CRITIQUE_KEY, JSON.stringify(all));
+}
 
 export const SAMPLE_ID_PREFIX = "sample:";
 
